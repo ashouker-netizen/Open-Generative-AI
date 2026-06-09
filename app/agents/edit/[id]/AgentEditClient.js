@@ -5,7 +5,7 @@ import "ai-agent/dist/tailwind.css";
 import { useCallback, useEffect, useRef } from "react";
 import axios from "axios";
 
-const STORAGE_KEY = "muapi_key";
+const STORAGE_KEY = "fal_key";
 
 export default function AgentEditClient({ userData }) {
   const interceptorRef = useRef(null);
@@ -15,7 +15,7 @@ export default function AgentEditClient({ userData }) {
       if (typeof window === "undefined") return null;
       const fromStorage = localStorage.getItem(STORAGE_KEY);
       if (fromStorage) return fromStorage;
-      const match = document.cookie.match(/muapi_key=([^;]+)/);
+      const match = document.cookie.match(/fal_key=([^;]+)/);
       return match ? match[1] : null;
     };
 
@@ -24,9 +24,8 @@ export default function AgentEditClient({ userData }) {
 
     interceptorRef.current = axios.interceptors.request.use((config) => {
       const isRelative = config.url.startsWith("/") || !config.url.startsWith("http");
-      const isInternalProxy = config.url.includes('/api/app') || config.url.includes('/api/workflow') || config.url.includes('/api/agents') || config.url.includes('/api/api') || config.url.includes('/api/v1');
       
-      if (isRelative || isInternalProxy) {
+      if (isRelative) {
         config.headers["x-api-key"] = apiKey;
       }
       return config;

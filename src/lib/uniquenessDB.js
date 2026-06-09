@@ -1,0 +1,24 @@
+const STORAGE_KEY = 'etsy_pipeline_history';
+
+export function getAll() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+export function hasBeenUsed(subject, theme) {
+  const history = getAll();
+  return history.some(e => e.subject === subject && e.theme === theme);
+}
+
+export function save(entry) {
+  const history = getAll();
+  history.push({ ...entry, id: crypto.randomUUID() });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+}
+
+export function getCount() {
+  return getAll().length;
+}

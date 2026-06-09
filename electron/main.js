@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, shell, ipcMain } = require('electron');
 const path = require('path');
 const { register: registerLocalInference } = require('./lib/localInference');
 const { register: registerWan2gp } = require('./lib/wan2gpProvider');
@@ -57,6 +57,12 @@ function createWindow() {
         mainWindow = null;
     });
 }
+
+ipcMain.handle('open-downloads', () => {
+    const os = require('os');
+    const path = require('path');
+    shell.openPath(path.join(os.homedir(), 'Downloads'));
+});
 
 app.whenReady().then(() => {
     createWindow();

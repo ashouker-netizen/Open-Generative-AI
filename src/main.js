@@ -36,6 +36,10 @@ function navigate(page) {
     import('./components/McpCliStudio.js').then(({ McpCliStudio }) => {
       contentArea.appendChild(McpCliStudio());
     });
+  } else if (page === 'etsy-pipeline') {
+    import('./components/EtsyPipeline.js').then(({ EtsyPipeline }) => {
+      contentArea.appendChild(EtsyPipeline());
+    });
   }
 }
 

@@ -31,8 +31,8 @@ export function McpCliStudio() {
             <div class="flex-1 h-px bg-white/5"></div>
         </div>
         <div class="grid md:grid-cols-3 gap-4">
-            ${quickStep('1', 'Install the CLI', 'npm install -g muapi-cli')}
-            ${quickStep('2', 'Sign in', 'muapi auth login')}
+            ${quickStep('1', 'Install the CLI', 'npm install -g fal-ai-cli')}
+            ${quickStep('2', 'Sign in', 'fal auth login')}
             ${quickStep('3', 'Generate from chat', 'npx skills add SamurAIGPT/Generative-Media-Skills')}
         </div>
     `;
@@ -44,21 +44,21 @@ export function McpCliStudio() {
 
     cards.appendChild(featureCard({
         tag: 'CLI',
-        title: 'muapi-cli',
+        title: 'fal-ai-cli',
         body: 'Generate images, videos, and audio from the terminal across 14+ AI models. Dual interface — colored human output plus JSON for agents (--output-json, --jq filtering). Async workflows, file uploads, credit tracking.',
-        code: 'npm install -g muapi-cli\nmuapi image generate "a cyberpunk city" \\\n  --model flux-dev',
-        link: 'https://github.com/SamurAIGPT/muapi-cli',
-        linkLabel: 'View muapi-cli on GitHub',
+        code: 'npm install -g fal-ai-cli\nfal image generate "a cyberpunk city" \\\n  --model flux-dev',
+        link: 'https://github.com/SamurAIGPT/fal-ai-cli',
+        linkLabel: 'View fal-ai-cli on GitHub',
         icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>`,
     }));
 
     cards.appendChild(featureCard({
         tag: 'MCP',
-        title: 'muapi-mcp-server',
+        title: 'fal-mcp-server',
         body: 'Connect Claude, Cursor, Windsurf, and any MCP-compatible assistant to 100+ generative models. Hosted endpoint — no install. 19 structured tools with input/output schemas, async polling, and account management.',
-        code: 'claude mcp add --transport http muapi \\\n  https://api.muapi.ai/mcp \\\n  --header "Authorization: Bearer YOUR_KEY"',
-        link: 'https://github.com/SamurAIGPT/muapi-mcp-server',
-        linkLabel: 'View muapi-mcp-server on GitHub',
+        code: 'claude mcp add --transport http fal \\\n  https://api.fal.ai/mcp \\\n  --header "Authorization: Key YOUR_KEY"',
+        link: 'https://github.com/SamurAIGPT/fal-mcp-server',
+        linkLabel: 'View fal-mcp-server on GitHub',
         icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg>`,
     }));
 
@@ -83,9 +83,9 @@ export function McpCliStudio() {
             <div class="flex-1 h-px bg-white/5"></div>
         </div>
         <div class="grid md:grid-cols-2 gap-4">
-            ${exampleBlock('Image generation', 'muapi image generate "a serene mountain lake at sunrise" \\\n  --model flux-dev --download ./outputs')}
-            ${exampleBlock('Text-to-video', 'muapi video generate "a dog running on a beach" \\\n  --model kling-master')}
-            ${exampleBlock('Audio creation', 'muapi audio create "upbeat lo-fi hip hop for studying"')}
+            ${exampleBlock('Image generation', 'fal image generate "a serene mountain lake at sunrise" \\\n  --model flux-dev --download ./outputs')}
+            ${exampleBlock('Text-to-video', 'fal video generate "a dog running on a beach" \\\n  --model kling-master')}
+            ${exampleBlock('Audio creation', 'fal audio create "upbeat lo-fi hip hop for studying"')}
             ${exampleBlock('Run a skill', 'bash library/visual/nano-banana/scripts/\\\n  generate-nano-art.sh --file image.jpg --view')}
         </div>
     `;

@@ -1,0 +1,46 @@
+<h2>Design: Etsy Pipeline Module</h2>
+<p class="subtitle">Section 3 of 3: Scheduler, Folder Saving & Notifications</p>
+
+<div class="section">
+  <h3>📅 Scheduler (scheduler.js)</h3>
+  <p>Since this is a browser-based app (not always running), the scheduler works like this:</p>
+  <ul>
+    <li>On app open, checks <code>localStorage</code> for the last run date</li>
+    <li>If today's run hasn't happened yet and the time is past the configured hour (default 8am), it triggers the pipeline automatically</li>
+    <li>A <strong>"Run Now"</strong> button in the UI triggers it manually anytime</li>
+    <li>Only 1 run per day is allowed (enforced by the date check)</li>
+  </ul>
+  <p><em>Note: the app must be open for the auto-run to fire. If you open it later in the day, it catches up and runs immediately.</em></p>
+</div>
+
+<div class="section">
+  <h3>📁 Folder Saving</h3>
+  <p>Generated images are downloaded to a local folder using the browser's download API:</p>
+  <ul>
+    <li>Filename format: <code>etsy-YYYY-MM-DD-sleepy-elephant-stars.png</code></li>
+    <li>Default save location: your browser's Downloads folder (user can move it)</li>
+    <li>An "Open Folder" button in the UI opens the Downloads folder in Finder</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h3>🔔 Notification</h3>
+  <p>Uses the browser's <strong>Web Notifications API</strong> (works in Electron/desktop apps):</p>
+  <ul>
+    <li>Shows: <em>"🎨 New Etsy print ready! Sleepy elephant under the stars — saved to Downloads"</em></li>
+    <li>Clicking the notification opens the app to the Etsy Pipeline tab</li>
+    <li>Requests notification permission on first use</li>
+  </ul>
+</div>
+
+<p class="subtitle">Does this flow look right? This is the final section.</p>
+<div class="options">
+  <div class="option" data-choice="yes" onclick="toggleSelect(this)">
+    <div class="letter">✅</div>
+    <div class="content"><h3>Approved — write the spec!</h3></div>
+  </div>
+  <div class="option" data-choice="no" onclick="toggleSelect(this)">
+    <div class="letter">✏️</div>
+    <div class="content"><h3>I want to change something</h3></div>
+  </div>
+</div>

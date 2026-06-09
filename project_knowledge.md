@@ -7,7 +7,7 @@ This document serves as a comprehensive knowledge base for the Open Generative A
 **Open Generative AI** is an ambitious open-source project for AI image and video generation.
 
 - **Core Goal:** To build a feature-complete, self-hosted generative AI studio, starting with **Image Generation** (Nano) and expanding into **Video Generation** (Cinema) and other creative tools.
-- **Current State:** The Image Studio ("Nano Banana Pro" interface) is fully operational, featuring a premium dark-mode UI, history management, and multi-model support via the [Muapi.ai](https://muapi.ai) engine.
+- **Current State:** The Image Studio ("Nano Banana Pro" interface) is fully operational, featuring a premium dark-mode UI, history management, and multi-model support via fal.ai.
 - **Future Direction:** The architecture is designed to scale for video generation, model training interfaces, and advanced editing tools.
 
 - **Stack:** Vite, Vanilla JavaScript, Tailwind CSS v4.
@@ -27,7 +27,7 @@ src/
 │   ├── SettingsModal.js   # Panel for managing settings (clearing API key).
 │   └── Sidebar.js        # (Currently unused/placeholder) Navigation sidebar.
 ├── lib/
-│   ├── muapi.js          # The API Client. Handles auth, submission, and polling.
+│   ├── muapi.js          # The API Client. Handles auth, submission, polling, and fal compatibility.
 │   └── models.js         # Source of truth for model definitions and endpoints.
 ├── styles/
 │   ├── global.css        # Global resets, fonts, and animation keyframes.
@@ -57,13 +57,13 @@ This is the most complex component. It handles:
     - Thumbnails are clickable to re-view; hover to download.
 
 ### `muapi.js` (The Engine)
-Encapsulates all communication with `api.muapi.ai`.
-- **Authentication:** Uses `x-api-key` header (NOT `Authorization: Bearer`).
+Encapsulates all communication with fal.ai.
+- **Authentication:** Uses `Authorization: Key ...` for fal requests.
 - **Pattern:** Submit -> Poll.
-    - `POST` to endpoint (e.g., `/api/v1/nano-banana-pro`).
-    - API returns a `request_id`.
-    - `POST` / `GET` loop on `/api/v1/predictions/{id}/result` until status is `completed`, `succeeded`, or `failed`.
-- **Normalization:** The polling response structure varies. `muapi.js` normalizes the result to ensure `url` is always populated (extracting from `outputs[0]` if necessary).
+    - `POST` to the fal queue endpoint for the selected model.
+    - fal returns a request id.
+    - Poll the request status until it completes or fails.
+- **Normalization:** The polling response structure varies. `muapi.js` normalizes the result to ensure `url` is always populated (extracting from the returned media payload when needed).
 
 ### `models.js` (The Data)
 Contains the `t2iModels` array.
@@ -82,8 +82,8 @@ Contains the `t2iModels` array.
 
 ## 5. Development Setup
 
-- **Vite Proxy:** Local development uses a proxy in `vite.config.js` to route `/api` requests to `https://api.muapi.ai` to avoid CORS issues.
-- **Environment:** `muapi.js` detects `import.meta.env.DEV` to decide whether to use the relative `/api` path (proxy) or the full URL (production).
+- **Vite Proxy:** Local development uses a proxy in `vite.config.js` to route fal requests through `/api/fal/*` so the browser can reach fal’s queue and file endpoints cleanly.
+- **Environment:** `muapi.js` detects the browser environment and chooses the local proxy in web builds or direct fal endpoints in non-web environments.
 
 ## 6. Known Gotchas & Fixes
 

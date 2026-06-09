@@ -2,7 +2,7 @@
 
 > **The free, open-source alternative to AI Video Platforms.** Generate AI images and videos using 200+ state-of-the-art models — no content filters, no closed ecosystem, no subscription fees.
 
-**Community:** Join [Reddit](reddit.com/r/muapi) & [Discord](https://discord.gg/s7KW4fsqXK) for discussions and support
+**Community:** Join the project on GitHub for discussions, issues, and support
 
 > 🤖 **Automate media generations with AI coding agents:** [Generative-Media-Skills](https://github.com/SamurAIGPT/Generative-Media-Skills) — a library of skills that let agents like **Claude Code**, **Codex**, and other coding assistants drive 200+ image/video models end-to-end (prompt → generate → edit → stitch) directly from your terminal. Perfect for building automated media pipelines without touching a UI.
 
@@ -16,7 +16,7 @@
 
 ## 🌐 Try it Online — No Install Required
 
-**Hosted version:** [https://dev.muapi.ai/open-generative-ai](https://dev.muapi.ai/open-generative-ai)
+**Hosted version:** [https://fal.ai](https://fal.ai)
 
 Use all four studios (Image, Video, Lip Sync, Cinema) directly in your browser — no Node.js, no setup. Sign up for a free account to start generating. The hosted version is always up to date with the latest models.
 
@@ -111,7 +111,7 @@ echo 'kernel.apparmor_restrict_unprivileged_userns=0' | sudo tee /etc/sysctl.d/9
 
 ---
 
-Open Generative AI is a free, open-source AI image, video, cinema, and lip sync studio that brings creative workflows to everyone. No content filters, no prompt rejections, no guardrails — just full creative freedom. Powered by [Muapi.ai](https://muapi.ai), it supports text-to-image, image-to-image, text-to-video, image-to-video, and audio-driven lip sync generation across models like Flux, Nano Banana, Midjourney, Kling, Sora, Veo, Seedream, Infinite Talk, LTX Lipsync, Wan 2.2, and more — all from a sleek, modern interface you can self-host and customize.
+Open Generative AI is a free, open-source AI image, video, cinema, and lip sync studio that brings creative workflows to everyone. No content filters, no prompt rejections, no guardrails — just full creative freedom. Powered by fal.ai, it supports text-to-image, image-to-image, text-to-video, image-to-video, and audio-driven lip sync generation across models like Flux, Nano Banana, Midjourney, Kling, Sora, Veo, Seedream, Infinite Talk, LTX Lipsync, Wan 2.2, and more — all from a sleek, modern interface you can self-host and customize.
 
 **Why Open Generative AI instead of other AI Video Platforms?**
 - **No filters** — no content filters, no nanny guardrails, no prompt rejections
@@ -233,7 +233,7 @@ A healthy run on Apple Silicon prints `total params memory size = 1969.78MB (VRA
 - **Smart Controls** — Dynamic aspect ratio, resolution/quality, and duration pickers that adapt to each model's capabilities (including t2i models with resolution or quality options)
 - **Generation History** — Browse, revisit, and download all past generations (persisted in browser storage)
 - **Image & Video Download** — One-click download of generated outputs in full resolution
-- **API Key Management** — Secure API key storage in browser localStorage (never sent to any server except Muapi)
+- **API Key Management** — Secure API key storage in browser localStorage (never sent anywhere except fal.ai)
 - **Responsive Design** — Works seamlessly on desktop and mobile with dark glassmorphism UI
 
 ### 🖼️ Image Studio — Dual Mode
@@ -349,7 +349,7 @@ The **Workflow Studio** lets you build and run multi-step AI pipelines without w
 - **Community** — Browse and run workflows published by other users
 - **Node-based Builder** — Drag-and-drop visual editor to connect models and route outputs between steps
 - **Playground** — Run any workflow interactively with a form UI; results render inline
-- **API execution** — Every workflow is also callable via the Muapi API
+- **API execution** — Every workflow is also callable via the fal API
 
 > 💡 **Want to add workflows to your own app?** Check out **[Vibe Workflow](https://github.com/SamurAIGPT/Vibe-Workflow)** — the open-source workflow engine powering this feature. Drop it into any project.
 
@@ -381,7 +381,7 @@ Every image you upload is saved locally (URL + thumbnail) so you never upload th
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) (v18+)
-- A [Muapi.ai](https://muapi.ai) API key
+- A fal.ai API key
 
 ### Setup
 
@@ -410,7 +410,7 @@ npm run electron:dev   # Desktop app (Electron + Vite) — recommended
 npm run dev            # Hosted web version (Next.js) → http://localhost:3000
 ```
 
-You'll be prompted to enter your Muapi API key on first use (skip the key if you only plan to use local models).
+You'll be prompted to enter your fal.ai API key on first use (skip the key if you only plan to use local models).
 
 > **Troubleshooting — `Couldn't find a 'pages' directory`**: this means Next.js can't see the `app/` folder. Confirm you're running `npm run dev` from the repo root (the directory that contains `app/`, `package.json`, and `next.config.mjs`), and that you cloned with submodules. Re-run `npm run setup` if `packages/Vibe-Workflow` or `packages/Open-Poe-AI` are empty.
 
@@ -460,7 +460,7 @@ Open-Generative-AI/
 │       └── src/
 │           ├── index.js        # Exports: ImageStudio, VideoStudio, LipSyncStudio, CinemaStudio, WorkflowStudio
 │           ├── models.js       # 200+ model definitions (single source of truth)
-│           ├── muapi.js        # API client (named exports, apiKey as first param)
+│           ├── muapi.js        # API client (fal-backed compatibility layer)
 │           └── components/
 │               ├── ImageStudio.jsx    # Dual-mode t2i/i2i studio
 │               ├── VideoStudio.jsx    # Dual-mode t2v/i2v studio
@@ -472,16 +472,16 @@ Open-Generative-AI/
 └── package.json                # workspaces: ["packages/studio"]
 ```
 
-The `packages/studio` library is also consumed by the hosted version on [muapi.ai](https://muapi.ai) — model updates made in `packages/studio/src/models.js` apply to both the self-hosted app and the hosted version automatically.
+The `packages/studio` library is also consumed by fal-powered builds of the app — model updates made in `packages/studio/src/models.js` apply everywhere the shared studio package is used.
 
 ## 🔌 API Integration
 
-The app communicates with [Muapi.ai](https://muapi.ai) using a two-step pattern:
+The app communicates with fal using a two-step pattern:
 
 1. **Submit** — `POST /api/v1/{model-endpoint}` with prompt and parameters
 2. **Poll** — `GET /api/v1/predictions/{request_id}/result` until status is `completed`
 
-Authentication uses the `x-api-key` header. During development, a Vite proxy handles CORS by routing `/api` requests to `https://api.muapi.ai`.
+Authentication uses the `Authorization: Key ...` header. During development, a Vite proxy handles CORS by routing fal requests through local `/api/fal/*` paths.
 
 File uploads use `POST /api/v1/upload_file` (multipart/form-data) and return a hosted URL that is passed to image-conditioned models. For multi-image models the full `images_list` array is forwarded to the API in one request.
 
@@ -503,7 +503,7 @@ Lip sync jobs use the same two-step pattern: a dedicated `processLipSync()` meth
 - **React 18** — Studio UI components
 - **Tailwind CSS v3** — Utility-first styling
 - **npm workspaces** — Monorepo with shared `packages/studio` library
-- **Muapi.ai** — AI model API gateway
+- **fal.ai** — AI model API gateway
 
 ## 🤔 How is this different from other AI Video Plaforms?
 
@@ -517,7 +517,7 @@ Lip sync jobs use the same two-step pattern: a dedicated `processLipSync()` meth
 | **Models** | Proprietary | 200+ open & commercial models |
 | **Multi-image input** | Limited | Up to 14 images per request |
 | **Lip sync** | No | 9 models, image & video modes |
-| **Hosted version** | Subscription | Free at [muapi.ai/open-generative-ai](https://muapi.ai/open-generative-ai) |
+| **Hosted version** | Subscription | Free on fal-powered deployments |
 | **Self-hosting** | No | Yes |
 | **Customizable** | No | Fully hackable |
 | **Data privacy** | Cloud-based | Your data stays local |
@@ -529,7 +529,7 @@ MIT
 
 ## 🙏 Credits
 
-Built with [Muapi.ai](https://muapi.ai) — the unified API for AI image and video generation models.
+Built with fal.ai — the unified API for AI image and video generation models.
 
 ---
 **Deep Dive**: For more details on the "AI Influencer" engine, upcoming "Popcorn" storyboarding features, and the future of this project, read the [full technical overview](https://medium.com/@anilmatcha/).

@@ -27,6 +27,9 @@ contextBridge.exposeInMainWorld('localAI', {
         uploadFile: (payload) => ipcRenderer.invoke('wan2gp:upload-file', payload),
     },
 
+    // ── Etsy Pipeline ──────────────────────────────────────────────────────
+    openDownloads: () => ipcRenderer.invoke('open-downloads'),
+
     // Progress events — both engines emit on local-ai:progress
     onProgress: (callback) => {
         const listener = (_, data) => callback(data);

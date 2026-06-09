@@ -1,0 +1,54 @@
+<h2>Design: Etsy Pipeline Module</h2>
+<p class="subtitle">A new tab inside Open Generative AI — section 1 of 3: Architecture & Components</p>
+
+<div class="section">
+  <h3>🏗️ Architecture Overview</h3>
+  <p>A new <strong>"Etsy Pipeline"</strong> tab added to the existing app alongside the Image Studio. It lives entirely in the frontend — no backend server needed.</p>
+  <div class="mockup">
+    <div class="mockup-header">App Layout</div>
+    <div class="mockup-body">
+      <div class="mock-nav">Open Generative AI &nbsp;|&nbsp; 🎨 Image Studio &nbsp;|&nbsp; 🛍️ Etsy Pipeline ← NEW</div>
+      <div style="display:flex;gap:16px;margin-top:12px;">
+        <div class="mock-sidebar" style="min-width:200px;">
+          <strong>Pipeline Controls</strong><br><br>
+          🔄 Run Now<br><br>
+          📅 Schedule: 8am daily<br><br>
+          📦 Category mix:<br>
+          - Animals<br>
+          - Botanical<br>
+          - Educational
+        </div>
+        <div class="mock-content">
+          <strong>Today's Generated Image</strong><br><br>
+          [ Image Preview ]<br><br>
+          Concept: "Sleepy Fox with Moon"<br>
+          Model: flux-schnell<br>
+          Status: ✅ Saved to folder<br><br>
+          <button class="mock-button">📁 Open Folder</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>📦 New Files</h3>
+  <ul>
+    <li><strong>src/components/EtsyPipeline.js</strong> — main tab component (UI + orchestration)</li>
+    <li><strong>src/lib/ideaEngine.js</strong> — generates unique nursery concepts</li>
+    <li><strong>src/lib/uniquenessDB.js</strong> — tracks past concepts in localStorage</li>
+    <li><strong>src/lib/scheduler.js</strong> — daily schedule via setTimeout/alarm at app open</li>
+  </ul>
+</div>
+
+<p class="subtitle">Does this architecture look right so far?</p>
+<div class="options">
+  <div class="option" data-choice="yes" onclick="toggleSelect(this)">
+    <div class="letter">✅</div>
+    <div class="content"><h3>Looks good — continue</h3></div>
+  </div>
+  <div class="option" data-choice="no" onclick="toggleSelect(this)">
+    <div class="letter">✏️</div>
+    <div class="content"><h3>I want to change something</h3></div>
+  </div>
+</div>

@@ -1,0 +1,42 @@
+<h2>Design: Etsy Pipeline Module</h2>
+<p class="subtitle">Section 2 of 3: Idea Engine & Uniqueness Tracking</p>
+
+<div class="section">
+  <h3>💡 Idea Engine (ideaEngine.js)</h3>
+  <p>Generates a new nursery print concept each run. Combines randomized elements to produce a prompt for fal.ai:</p>
+  <div class="mockup">
+    <div class="mockup-header">Concept Formula</div>
+    <div class="mockup-body" style="font-family:monospace;font-size:13px;">
+      <strong>Subject</strong> (e.g. "sleepy elephant", "baby fox", "sunflower") <br>
+      + <strong>Theme</strong> (e.g. "under the stars", "in a cozy bed", "with alphabet blocks") <br>
+      + <strong>Style</strong> (e.g. "watercolor", "flat illustration", "soft pastel") <br>
+      + <strong>Format</strong>: "nursery wall art, 8x10, white background" <br><br>
+      → <em>"Watercolor sleepy elephant under the stars, nursery wall art, soft pastel, 8x10"</em>
+    </div>
+  </div>
+  <p>The engine picks randomly from curated lists for each category. You can edit these lists from the UI settings panel.</p>
+</div>
+
+<div class="section">
+  <h3>🔒 Uniqueness Tracker (uniquenessDB.js)</h3>
+  <p>Stored in <strong>localStorage</strong> under <code>etsy_pipeline_history</code>. Each entry records:</p>
+  <ul>
+    <li>Concept string (subject + theme + style)</li>
+    <li>Date generated</li>
+    <li>Image filename</li>
+    <li>Status (approved / skipped)</li>
+  </ul>
+  <p>Before generating, the engine checks: has this exact <em>subject + theme</em> combo been used before? If yes, it re-rolls until a unique combo is found (max 10 attempts). This guarantees no duplicate concepts in your shop.</p>
+</div>
+
+<p class="subtitle">Does this idea engine & uniqueness approach look right?</p>
+<div class="options">
+  <div class="option" data-choice="yes" onclick="toggleSelect(this)">
+    <div class="letter">✅</div>
+    <div class="content"><h3>Looks good — continue</h3></div>
+  </div>
+  <div class="option" data-choice="no" onclick="toggleSelect(this)">
+    <div class="letter">✏️</div>
+    <div class="content"><h3>I want to change something</h3></div>
+  </div>
+</div>

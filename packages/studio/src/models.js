@@ -1853,17 +1853,18 @@ export const t2iModels = [
         "description": "Aspect ratio of the output image.",
         "default": "auto"
       },
-      "resolution": {
+      "quality": {
         "enum": [
-          "1K",
-          "2K",
-          "4K"
+          "auto",
+          "low",
+          "medium",
+          "high"
         ],
-        "title": "Resolution",
-        "name": "resolution",
+        "title": "Quality",
+        "name": "quality",
         "type": "string",
-        "description": "The target resolution of the generated image.",
-        "default": "2K"
+        "description": "The quality of the generated image.",
+        "default": "high"
       }
     }
   },
@@ -2369,17 +2370,7 @@ export const t2vModels = [
       "resolution": { "enum": ["1080p"], "title": "Resolution", "name": "resolution", "type": "string", "description": "The resolution of the generated video.", "default": "1080p" }
     }
   },
-  {
-    "id": "runway-text-to-video",
-    "name": "Runway Gen-3",
-    "inputs": {
-      "prompt": { "type": "string", "title": "Prompt", "name": "prompt", "description": "The prompt to be used to generate a video" },
-      "aspect_ratio": { "enum": ["16:9", "9:16", "1:1", "4:3", "3:4"], "title": "Aspect Ratio", "name": "aspect_ratio", "type": "string", "description": "Aspect ratio of the output video.", "default": "16:9" },
-      "duration": { "enum": [5, 8], "title": "Duration", "name": "duration", "type": "int", "description": "The duration in seconds. If 8-second video is selected, 1080p resolution cannot be used.", "default": 5 },
-      "resolution": { "enum": ["720p", "1080p"], "title": "Resolution", "name": "resolution", "type": "string", "description": "The resolution of the generated video. If 1080p is selected, 8-second video cannot be generated.", "default": "720p" }
-    }
-  },
-  {
+    {
     "id": "wan2.1-text-to-video",
     "name": "Wan 2.1",
     "inputs": {
@@ -2520,22 +2511,13 @@ export const t2vModels = [
       "duration": { "enum": [6, 10], "title": "Duration", "name": "duration", "type": "int", "description": "The duration of the generated video in seconds", "default": 6 }
     }
   },
-  {
-    "id": "openai-sora",
-    "name": "Sora",
-    "inputs": {
-      "prompt": { "type": "string", "title": "Prompt", "name": "prompt", "description": "Text prompt describing the video." },
-      "aspect_ratio": { "enum": ["16:9", "9:16", "1:1"], "title": "Aspect Ratio", "name": "aspect_ratio", "type": "string", "description": "Aspect ratio of the output video.", "default": "16:9" },
-      "resolution": { "enum": ["480p", "720p", "1080p"], "title": "Resolution", "name": "resolution", "type": "string", "description": "The resolution of the generated video.", "default": "480p" }
-    }
-  },
-  {
+    {
     "id": "openai-sora-2-text-to-video",
     "name": "Sora 2",
     "inputs": {
       "prompt": { "type": "string", "title": "Prompt", "name": "prompt", "description": "The prompt to generate the video" },
       "aspect_ratio": { "enum": ["16:9", "9:16"], "title": "Aspect Ratio", "name": "aspect_ratio", "type": "string", "description": "Aspect ratio of the output video.", "default": "16:9" },
-      "duration": { "enum": [10, 15], "title": "Duration", "name": "duration", "type": "int", "description": "The duration of the generated video in seconds", "default": 10 }
+      "duration": { "enum": [4, 8, 12, 16, 20], "title": "Duration", "name": "duration", "type": "int", "description": "The duration of the generated video in seconds", "default": 4 }
     }
   },
   {
@@ -2544,7 +2526,7 @@ export const t2vModels = [
     "inputs": {
       "prompt": { "type": "string", "title": "Prompt", "name": "prompt", "description": "The prompt to generate the video" },
       "aspect_ratio": { "enum": ["16:9", "9:16"], "title": "Aspect Ratio", "name": "aspect_ratio", "type": "string", "description": "Aspect ratio of the output video.", "default": "16:9" },
-      "duration": { "enum": [10, 15, 25], "title": "Duration", "name": "duration", "type": "int", "description": "The duration of the generated video in seconds. Currently 25 seconds supports 720p only.", "default": 10 },
+      "duration": { "enum": [4, 8, 12, 16, 20], "title": "Duration", "name": "duration", "type": "int", "description": "The duration of the generated video in seconds", "default": 4 },
       "resolution": { "enum": ["720p", "1080p"], "title": "Resolution", "name": "resolution", "type": "string", "description": "The resolution of the generated video.", "default": "720p" }
     }
   },
@@ -2661,16 +2643,7 @@ export const i2iModels = [
       }
     }
   },
-  {
-    "id": "ai-dress-change",
-    "name": "AI Dress Change",
-    "endpoint": "ai-dress-change",
-    "family": "tools",
-    "imageField": "model_image_url",
-    "hasPrompt": false,
-    "inputs": {}
-  },
-  {
+    {
     "id": "ai-background-remover",
     "name": "AI Background Remover",
     "endpoint": "ai-background-remover",
@@ -3424,44 +3397,7 @@ export const i2iModels = [
       }
     }
   },
-  {
-    "id": "image-effects",
-    "name": "Image Effects",
-    "endpoint": "image-effects",
-    "family": "effects",
-    "imageField": "image_url",
-    "hasPrompt": false,
-    "inputs": {
-      "name": {
-        "type": "string",
-        "title": "Effect Name",
-        "name": "name",
-        "description": "The type of effect to apply to the image.",
-        "enum": [
-          "Acryclic Ornaments",
-          "Advanced Photography",
-          "American Comic Style",
-          "Angel Figurine",
-          "Blurry Selfie",
-          "Cyberpunk",
-          "Exotic Charm",
-          "Felt 3D Polaroid",
-          "Felt Keychain",
-          "Furry Dream Doll",
-          "Futuristic American Comics",
-          "Glass Ball",
-          "In The Stadium",
-          "Lofi Pixel Character",
-          "Lying On Fluffy Belly",
-          "Landscape Mini World",
-          "My World",
-          "Plastic Bubble Figure"
-        ],
-        "default": "Angel Figurine"
-      }
-    }
-  },
-  {
+    {
     "id": "nano-banana-edit",
     "name": "Nano Banana Edit",
     "endpoint": "nano-banana-edit",
@@ -3619,63 +3555,7 @@ export const i2iModels = [
       }
     }
   },
-  {
-    "id": "nano-banana-effects",
-    "name": "Nano Banana Effects",
-    "endpoint": "nano-banana-effects",
-    "family": "nano",
-    "imageField": "image_url",
-    "hasPrompt": false,
-    "inputs": {
-      "name": {
-        "type": "string",
-        "title": "Effect Name",
-        "name": "name",
-        "description": "The type of effect to apply to the image.",
-        "enum": [
-          "3D Figurine",
-          "16bit Game Character",
-          "1920s Decade",
-          "1950s Decade",
-          "1970s Decade",
-          "1980s Decade",
-          "Action Figure",
-          "American Gothic Art",
-          "Egypts Landmark",
-          "Eiffel Tower Landmark",
-          "Famous Art",
-          "Great Wall of China Landmark",
-          "Mona Lisa Art",
-          "Persistent Memory Art",
-          "Statue of Liberty Landmark",
-          "Taj Mahal Landmark",
-          "Vincent Van Gogh Art"
-        ],
-        "default": "3D Figurine"
-      },
-      "aspect_ratio": {
-        "type": "string",
-        "title": "Aspect Ratio",
-        "name": "aspect_ratio",
-        "description": "Aspect ratio of the output image.",
-        "enum": [
-          "Auto",
-          "1:1",
-          "3:4",
-          "4:3",
-          "9:16",
-          "16:9",
-          "3:2",
-          "2:3",
-          "5:4",
-          "4:5",
-          "21:9"
-        ],
-        "default": "Auto"
-      }
-    }
-  },
-  {
+    {
     "id": "flux-kontext-effects",
     "name": "Flux Kontext Effects",
     "endpoint": "flux-kontext-effects",
@@ -4026,23 +3906,7 @@ export const i2iModels = [
       }
     }
   },
-  {
-    "id": "image-passthrough",
-    "name": "Image Passthrough",
-    "endpoint": "image-passthrough",
-    "family": "image",
-    "imageField": "image_url",
-    "hasPrompt": false,
-    "inputs": {
-      "make_input": {
-        "type": "boolean",
-        "title": "Make Input",
-        "name": "make_input",
-        "default": true
-      }
-    }
-  },
-  {
+    {
     "id": "kling-o1-edit-image",
     "name": "Kling O1 Edit Image",
     "endpoint": "kling-o1-edit-image",
@@ -4457,17 +4321,18 @@ export const i2iModels = [
         ],
         "default": "auto"
       },
-      "resolution": {
+      "quality": {
         "type": "string",
-        "title": "Resolution",
-        "name": "resolution",
-        "description": "The target resolution of the generated image.",
+        "title": "Quality",
+        "name": "quality",
+        "description": "The quality of the generated image.",
         "enum": [
-          "1K",
-          "2K",
-          "4K"
+          "auto",
+          "low",
+          "medium",
+          "high"
         ],
-        "default": "2K"
+        "default": "high"
       }
     }
   },
@@ -4534,35 +4399,7 @@ export const i2iModels = [
       }
     }
   },
-  {
-    "id": "Api Node",
-    "name": "Api Node",
-    "endpoint": "Api Node",
-    "family": "wavespeed",
-    "imageField": "image_url",
-    "hasPrompt": false,
-    "inputs": {
-      "model_url": {
-        "type": "string",
-        "title": "Model URL",
-        "name": "model_url",
-        "description": "Url of the wavespeed model",
-        "examples": [
-          ""
-        ]
-      },
-      "api_key": {
-        "type": "string",
-        "title": "API Key",
-        "name": "api_key",
-        "description": "API key for authentication",
-        "examples": [
-          ""
-        ]
-      }
-    }
-  },
-  {
+    {
     "id": "flux-2-klein-4b-edit",
     "name": "Flux 2 Klein 4b Edit",
     "endpoint": "flux-2-klein-4b-edit",
@@ -4634,45 +4471,7 @@ export const i2iModels = [
       }
     }
   },
-  {
-    "id": "add-image-watermark",
-    "name": "Add Image Watermark",
-    "endpoint": "add-image-watermark",
-    "family": "watermark",
-    "imageField": "image_url",
-    "hasPrompt": false,
-    "inputs": {
-      "position": {
-        "type": "string",
-        "title": "Position",
-        "name": "position",
-        "description": "Position of the watermark on the image",
-        "enum": [
-          "top-left",
-          "top-right",
-          "bottom-left",
-          "bottom-right",
-          "center"
-        ],
-        "default": "bottom-right"
-      },
-      "opacity": {
-        "type": "number",
-        "title": "Opacity",
-        "name": "opacity",
-        "description": "Watermark transparency (0 = invisible, 1 = fully opaque)",
-        "default": 0.7
-      },
-      "scale": {
-        "type": "number",
-        "title": "Scale",
-        "name": "scale",
-        "description": "Watermark size relative to image (0.1 = 10%, 1.0 = 100%)",
-        "default": 0.2
-      }
-    }
-  },
-  {
+    {
     "id": "nano-banana-2-edit",
     "name": "Nano Banana 2 Edit",
     "endpoint": "nano-banana-2-edit",
@@ -5118,7 +4917,7 @@ export const i2vModels = [
         "name": "prompt",
         "description": "Text prompt describing the desired video content.",
         "examples": [
-          "On a neon-lit street corner, a hyped street performer with a mic shouts: 'Yo! Big drop today! VEO3 just launched on muapi!' A crowd cheers as holograms of videos burst into the air and the muapi logo spins above."
+          "On a neon-lit street corner, a hyped street performer with a mic shouts: 'Yo! Big drop today! VEO3 just launched on fal!' A crowd cheers as holograms of videos burst into the air and the fal logo spins above."
         ]
       },
       "aspect_ratio": {
@@ -5148,7 +4947,7 @@ export const i2vModels = [
         "name": "prompt",
         "description": "Text prompt describing the desired video content.",
         "examples": [
-          "A spaceship hovers over Earth. A digital billboard beams out: 'MuAPI is broadcasting creativity across the galaxy.' A robot host floats in zero gravity holding a prompt card: 'Let’s turn this into a story.' Suddenly, video panels fly around the ship with generated content."
+          "A spaceship hovers over Earth. A digital billboard beams out: 'fal is broadcasting creativity across the galaxy.' A robot host floats in zero gravity holding a prompt card: 'Let’s turn this into a story.' Suddenly, video panels fly around the ship with generated content."
         ]
       },
       "aspect_ratio": {
@@ -5164,62 +4963,7 @@ export const i2vModels = [
       }
     }
   },
-  {
-    "id": "runway-image-to-video",
-    "name": "Runway Image To Video",
-    "endpoint": "runway-image-to-video",
-    "family": "runway",
-    "imageField": "image_url",
-    "hasPrompt": true,
-    "inputs": {
-      "prompt": {
-        "type": "string",
-        "title": "Prompt",
-        "name": "prompt",
-        "description": "The prompt to be used to generate a video",
-        "examples": [
-          "The camera smoothly zooms in on the sleek, futuristic race car as it speeds through a neon-lit urban tunnel at twilight, its glossy white surface reflecting the vibrant pink and blue lights streaking past. The precise detailing of the car’s aerodynamic curves and glowing accents is highlighted as droplets of water spray from the spinning tires, adding a palpable sense of motion and intensity. The driver’s black helmet, contrasted against the car’s gleaming body, remains sharply in focus, emphasizing the thrilling high-speed chase through the city. The blurred cityscape and illuminated digital billboards in the background create a high-tech, cyberpunk atmosphere, intensifying the scene’s adrenaline and futuristic vibe."
-        ]
-      },
-      "aspect_ratio": {
-        "type": "string",
-        "title": "Aspect Ratio",
-        "name": "aspect_ratio",
-        "description": "Aspect ratio of the output video.",
-        "enum": [
-          "16:9",
-          "9:16",
-          "1:1",
-          "4:3",
-          "3:4"
-        ],
-        "default": "16:9"
-      },
-      "resolution": {
-        "type": "string",
-        "title": "Resolution",
-        "name": "resolution",
-        "description": "The resolution of the generated video. If 1080p is selected, 8-second video cannot be generated.",
-        "enum": [
-          "720p",
-          "1080p"
-        ],
-        "default": "720p"
-      },
-      "duration": {
-        "type": "int",
-        "title": "Duration",
-        "name": "duration",
-        "description": "The duration in seconds. If 8-second video is selected, 1080p resolution cannot be used.",
-        "enum": [
-          5,
-          8
-        ],
-        "default": 5
-      }
-    }
-  },
-  {
+    {
     "id": "wan2.1-image-to-video",
     "name": "Wan2.1 Image To Video",
     "endpoint": "wan2.1-image-to-video",
@@ -5593,32 +5337,7 @@ export const i2vModels = [
       }
     }
   },
-  {
-    "id": "runway-act-two-i2v",
-    "name": "Runway Act Two I2V",
-    "endpoint": "runway-act-two-i2v",
-    "family": "runway",
-    "imageField": "image_url",
-    "hasPrompt": false,
-    "inputs": {
-      "aspect_ratio": {
-        "type": "string",
-        "title": "Aspect Ratio",
-        "name": "aspect_ratio",
-        "description": "Aspect ratio of the output video.",
-        "enum": [
-          "16:9",
-          "9:16",
-          "1:1",
-          "4:3",
-          "3:4",
-          "21:9"
-        ],
-        "default": "16:9"
-      }
-    }
-  },
-  {
+    {
     "id": "pixverse-v4.5-i2v",
     "name": "Pixverse v4.5 I2V",
     "endpoint": "pixverse-v4.5-i2v",
@@ -5839,67 +5558,7 @@ export const i2vModels = [
       }
     }
   },
-  {
-    "id": "video-effects",
-    "name": "Video Effects",
-    "endpoint": "video-effects",
-    "family": "effects",
-    "imageField": "image_url",
-    "hasPrompt": false,
-    "inputs": {
-      "name": {
-        "type": "string",
-        "title": "Effect Name",
-        "name": "name",
-        "description": "The type of effect to apply to the video.",
-        "enum": [
-          "Balloon Flyaway",
-          "Blow Kiss",
-          "Body Shake",
-          "Break Glass",
-          "Carry Me",
-          "Cartoon Doll",
-          "Cheek Kiss",
-          "Child Memory",
-          "Couple Arrival",
-          "Fairy Me",
-          "Fashion Stride",
-          "Fisherman",
-          "Flower Receive",
-          "Flying",
-          "French Kiss",
-          "Gender Swap",
-          "Golden Epoch",
-          "Hair Swap",
-          "Hugging",
-          "Jiggle Up",
-          "Kissing Pro",
-          "Live Memory",
-          "Love Drop",
-          "Melt",
-          "Minecraft",
-          "Muscling",
-          "Nap Me 360p",
-          "Paperman",
-          "Pilot",
-          "Pinch",
-          "Pixel Me",
-          "Romantic Lift",
-          "Sexy Me",
-          "Slice Therapy",
-          "Soul Depart",
-          "Split Stance Human",
-          "Squid Game",
-          "Toy Me",
-          "Walk Forward",
-          "Zoom In Fast",
-          "Zoom Out"
-        ],
-        "default": "Balloon Flyaway"
-      }
-    }
-  },
-  {
+    {
     "id": "seedance-lite-i2v",
     "name": "Seedance Lite I2V",
     "endpoint": "seedance-lite-i2v",
@@ -6186,7 +5845,7 @@ export const i2vModels = [
         "name": "prompt",
         "description": "The prompt to generate the video",
         "examples": [
-          "Animate the scene: camera slowly dollies forward toward the robot, neon city lights begin to flicker, soft reflections shift across the dome glass, twilight deepens into night with subtle ambient glow. The robot raises its head and speaks in a clear futuristic voice: ‘WAN 2.5 is now available on the MuAPI app.’"
+          "Animate the scene: camera slowly dollies forward toward the robot, neon city lights begin to flicker, soft reflections shift across the dome glass, twilight deepens into night with subtle ambient glow. The robot raises its head and speaks in a clear futuristic voice: ‘WAN 2.5 is now available on the fal app.’"
         ]
       },
       "resolution": {
@@ -6258,7 +5917,7 @@ export const i2vModels = [
     "name": "Openai Sora 2 Image To Video",
     "endpoint": "openai-sora-2-image-to-video",
     "family": "sora",
-    "imageField": "images_list",
+    "imageField": "image_url",
     "hasPrompt": true,
     "inputs": {
       "prompt": {
@@ -6287,10 +5946,13 @@ export const i2vModels = [
         "name": "duration",
         "description": "The duration of the generated video in seconds",
         "enum": [
-          10,
-          15
+          4,
+          8,
+          12,
+          16,
+          20
         ],
-        "default": 10
+        "default": 4
       },
       "remove_watermark": {
         "type": "boolean",
@@ -6325,7 +5987,7 @@ export const i2vModels = [
     "name": "Openai Sora 2 Pro Image To Video",
     "endpoint": "openai-sora-2-pro-image-to-video",
     "family": "sora",
-    "imageField": "images_list",
+    "imageField": "image_url",
     "hasPrompt": true,
     "inputs": {
       "prompt": {
@@ -6352,13 +6014,15 @@ export const i2vModels = [
         "type": "int",
         "title": "Duration",
         "name": "duration",
-        "description": "The duration of the generated video in seconds. Currently 25 seconds supports 720p only.",
+        "description": "The duration of the generated video in seconds",
         "enum": [
-          10,
-          15,
-          25
+          4,
+          8,
+          12,
+          16,
+          20
         ],
-        "default": 10
+        "default": 4
       },
       "resolution": {
         "type": "string",
@@ -6380,37 +6044,7 @@ export const i2vModels = [
       }
     }
   },
-  {
-    "id": "leonardoai-motion-2.0",
-    "name": "Leonardoai Motion 2.0",
-    "endpoint": "leonardoai-motion-2.0",
-    "family": "leonardoai",
-    "imageField": "image_url",
-    "hasPrompt": true,
-    "inputs": {
-      "prompt": {
-        "type": "string",
-        "title": "Prompt",
-        "name": "prompt",
-        "description": "Text prompt describing the video.",
-        "examples": [
-          "A diver swimming through a coral reef, colorful fish darting around, sunlight filtering through the water, slow-motion effect."
-        ]
-      },
-      "aspect_ratio": {
-        "type": "string",
-        "title": "Aspect Ratio",
-        "name": "aspect_ratio",
-        "description": "Aspect ratio of the output video.",
-        "enum": [
-          "16:9",
-          "9:16"
-        ],
-        "default": "16:9"
-      }
-    }
-  },
-  {
+    {
     "id": "veo3.1-image-to-video",
     "name": "Veo3.1 Image To Video",
     "endpoint": "veo3.1-image-to-video",
@@ -6425,7 +6059,7 @@ export const i2vModels = [
         "name": "prompt",
         "description": "Text prompt describing the video.",
         "examples": [
-          "Scene: Giant floating library orbiting in zero-gravity space.\nCharacters: Astronaut-librarian flipping glowing pages suspended midair.\nAction: Camera rotates 360° around drifting books → zooms through a floating page into a nebula outside window.\nCamera: Orbit + push-through transition.\nLighting: Cool cosmic ambient with warm page glows; rim lighting on suit.\nMotion: Slow rotational drift; pages react with fluid inertia.\nAudio: Ethereal synth pads + book rustle in vacuum hush.\nMood: Awe, wonder, intellectual calm.\nLine: “Wow veo3.1 launched in Muapiapp. Let's go!”"
+          "Scene: Giant floating library orbiting in zero-gravity space.\nCharacters: Astronaut-librarian flipping glowing pages suspended midair.\nAction: Camera rotates 360° around drifting books → zooms through a floating page into a nebula outside window.\nCamera: Orbit + push-through transition.\nLighting: Cool cosmic ambient with warm page glows; rim lighting on suit.\nMotion: Slow rotational drift; pages react with fluid inertia.\nAudio: Ethereal synth pads + book rustle in vacuum hush.\nMood: Awe, wonder, intellectual calm.\nLine: “Wow veo3.1 launched in the fal app. Let's go!”"
         ]
       },
       "aspect_ratio": {

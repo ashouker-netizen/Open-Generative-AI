@@ -270,7 +270,7 @@ export default function AppsStudio({ apiKey }) {
           </h1>
           <p className="text-white/40 text-sm font-medium leading-relaxed max-w-xl mx-auto">
             Each template is a fully-functional, Stripe-integrated AI SaaS you can deploy in minutes.
-            Charge your users, keep the revenue — muapi handles the AI infrastructure.
+            Charge your users, keep the revenue — fal handles the AI infrastructure.
           </p>
         </div>
 
@@ -281,7 +281,7 @@ export default function AppsStudio({ apiKey }) {
               icon: FaRocket,
               step: "01",
               title: "Deploy in Minutes",
-              body: "Fork the open-source template, add your muapi key, and push to Vercel. No backend setup needed."
+              body: "Fork the open-source template, add your fal.ai key, and push to Vercel. No backend setup needed."
             },
             {
               icon: FaCreditCard,
@@ -319,7 +319,7 @@ export default function AppsStudio({ apiKey }) {
         <div className="pt-24 pb-12 flex flex-col items-center gap-4">
           <div className="inline-flex items-center gap-3 px-4 py-2 bg-white/5 rounded-full border border-white/5">
             <span className="block w-1.5 h-1.5 rounded-full bg-[#22d3ee] animate-pulse" />
-            <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Muapi Ecosystem — More templates coming soon</span>
+            <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">fal.ai Ecosystem — More templates coming soon</span>
           </div>
         </div>
       </div>

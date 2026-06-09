@@ -806,7 +806,13 @@ export default function ImageStudio({
         if (data.selectedModelId) setSelectedModelId(data.selectedModelId);
         if (data.selectedModelName) setSelectedModelName(data.selectedModelName);
         if (data.selectedAr) setSelectedAr(data.selectedAr);
-        if (data.selectedQuality) setSelectedQuality(data.selectedQuality);
+        if (data.selectedQuality) {
+          const modelId = data.selectedModelId || t2iModels[0].id;
+          const validOptions = data.imageMode
+            ? getResolutionsForI2IModel(modelId)
+            : getResolutionsForModel(modelId);
+          setSelectedQuality(validOptions.includes(data.selectedQuality) ? data.selectedQuality : validOptions[0] || null);
+        }
         if (data.selectedEffect) setSelectedEffect(data.selectedEffect);
         if (data.maxImages) setMaxImages(data.maxImages);
         if (data.prompt) setPrompt(data.prompt);
@@ -1151,7 +1157,7 @@ export default function ImageStudio({
                     title="Download"
                     onClick={(e) => {
                       e.stopPropagation();
-                      downloadImage(entry.url, `muapi-${entry.id || idx}.jpg`);
+                    downloadImage(entry.url, `fal-${entry.id || idx}.jpg`);
                     }}
                     className="p-2 bg-black/60 backdrop-blur-md rounded-full text-white hover:bg-primary hover:text-black transition-all border border-white/10"
                   >

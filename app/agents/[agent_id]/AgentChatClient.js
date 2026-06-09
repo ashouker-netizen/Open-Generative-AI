@@ -5,10 +5,10 @@ import "ai-agent/dist/tailwind.css";
 import { useCallback, useEffect, useRef } from "react";
 import axios from "axios";
 
-const STORAGE_KEY = "muapi_key";
+const STORAGE_KEY = "fal_key";
 
 /**
- * AgentChatClient — mirrors muapiapp's AgentClient.js.
+ * AgentChatClient — compatibility wrapper around the fal-backed agent shell.
  * Renders the AiAgent library component with server-fetched agent details
  * and optional initial history.
  *
@@ -30,7 +30,7 @@ export default function AgentChatClient({ agentDetails, initialHistory, userData
       if (typeof window === "undefined") return null;
       const fromStorage = localStorage.getItem(STORAGE_KEY);
       if (fromStorage) return fromStorage;
-      const match = document.cookie.match(/muapi_key=([^;]+)/);
+      const match = document.cookie.match(/fal_key=([^;]+)/);
       return match ? match[1] : null;
     };
 
@@ -40,10 +40,8 @@ export default function AgentChatClient({ agentDetails, initialHistory, userData
     interceptorRef.current = axios.interceptors.request.use((config) => {
       const isRelative =
         config.url.startsWith("/") || !config.url.startsWith("http");
-      // Include specific proxy paths to be sure
-      const isInternalProxy = config.url.includes('/api/app') || config.url.includes('/api/workflow') || config.url.includes('/api/agents') || config.url.includes('/api/api') || config.url.includes('/api/v1');
       
-      if (isRelative || isInternalProxy) {
+      if (isRelative) {
         config.headers["x-api-key"] = apiKey;
       }
       return config;
@@ -76,7 +74,7 @@ export default function AgentChatClient({ agentDetails, initialHistory, userData
         initialAgentDetails={agentDetails}
         initialHistory={initialHistory}
         useUser={useUser}
-        usedIn="muapiapp"
+        usedIn="fal-studio"
       />
     </div>
   );

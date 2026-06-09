@@ -17,7 +17,7 @@ const TABS = [
   { id: 'apps', label: 'Explore Apps' },
 ];
 
-const STORAGE_KEY = 'muapi_key';
+const STORAGE_KEY = 'fal_key';
 
 export default function StandaloneShell() {
   const params = useParams();
@@ -107,9 +107,10 @@ export default function StandaloneShell() {
   const fetchBalance = useCallback(async (key) => {
     try {
       const data = await getUserBalance(key);
-      setBalance(data.balance);
+      setBalance(data?.balance ?? null);
     } catch (err) {
       console.error('Balance fetch failed:', err);
+      setBalance(null);
     }
   }, []);
 
@@ -120,22 +121,26 @@ export default function StandaloneShell() {
       setApiKey(stored);
       fetchBalance(stored);
       // Sync cookie immediately on mount to establish identity for background requests
-      document.cookie = `muapi_key=${stored}; path=/; max-age=31536000; SameSite=Lax`;
+      window.__FAL_KEY__ = stored;
+      localStorage.setItem('fal_key', stored);
+      document.cookie = `fal_key=${stored}; path=/; max-age=31536000; SameSite=Lax`;
     }
   }, [fetchBalance]);
 
   const handleKeySave = useCallback((key) => {
     localStorage.setItem(STORAGE_KEY, key);
+    window.__FAL_KEY__ = key;
     setApiKey(key);
     fetchBalance(key);
-    document.cookie = `muapi_key=${key}; path=/; max-age=31536000; SameSite=Lax`;
+    document.cookie = `fal_key=${key}; path=/; max-age=31536000; SameSite=Lax`;
   }, [fetchBalance]);
 
   const handleKeyChange = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
+    delete window.__FAL_KEY__;
     setApiKey(null);
     setBalance(null);
-    document.cookie = "muapi_key=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    document.cookie = "fal_key=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   }, []);
 
   // Inject API key into all outgoing Axios requests (prop-based approach)
@@ -149,9 +154,8 @@ export default function StandaloneShell() {
     const interceptorId = axios.interceptors.request.use((config) => {
       // Check if URL is local/proxied
       const isRelative = config.url.startsWith('/') || !config.url.startsWith('http');
-      const isInternalProxy = config.url.includes('/api/app') || config.url.includes('/api/workflow') || config.url.includes('/api/agents') || config.url.includes('/api/api') || config.url.includes('/api/v1');
 
-      if (isRelative || isInternalProxy) {
+      if (isRelative) {
         config.headers['x-api-key'] = apiKey;
       }
       
@@ -206,6 +210,16 @@ export default function StandaloneShell() {
   const handleFilesHandled = useCallback(() => {
     setDroppedFiles(null);
   }, []);
+
+  const compatibilityNotice =
+    activeTab === 'agents' || activeTab === 'workflows' ? (
+      <div className="w-full px-4 pt-4">
+        <div className="mx-auto max-w-7xl rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-xs text-amber-100/90">
+          The Agents and Workflows sections still rely on compatibility routes under the hood. The
+          fal-backed studio is the main experience now.
+        </div>
+      </div>
+    ) : null;
 
   if (!hasMounted) return (
     <div className="min-h-screen bg-[#050505] flex items-center justify-center">
@@ -300,6 +314,8 @@ export default function StandaloneShell() {
           </div>
         </header>
       )}
+
+      {compatibilityNotice}
 
       {/* Studio Content */}
       <div className="flex-1 min-h-0 relative overflow-hidden">

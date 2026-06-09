@@ -27,7 +27,7 @@ export function Header(navigate) {
 
     const menu = document.createElement('nav');
     menu.className = 'hidden lg:flex items-center gap-6 text-[13px] font-bold text-secondary';
-    const items = ['Image', 'Video', 'Lip Sync', 'Cinema Studio', 'Workflows', 'Agents', 'MCP & CLI'];
+    const items = ['Image', 'Video', 'Lip Sync', 'Cinema Studio', 'Workflows', 'Agents', 'MCP & CLI', 'Etsy Pipeline'];
 
     items.forEach(item => {
         const link = document.createElement('a');
@@ -54,6 +54,7 @@ export function Header(navigate) {
             else if (item === 'Workflows') navigate('workflows');
             else if (item === 'Agents') navigate('agents');
             else if (item === 'MCP & CLI') navigate('mcp-cli');
+            else if (item === 'Etsy Pipeline') navigate('etsy-pipeline');
         };
 
         menu.appendChild(link);

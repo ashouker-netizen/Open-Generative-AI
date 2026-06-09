@@ -297,7 +297,7 @@ export function VideoStudio() {
         const file = e.target.files[0];
         if (!file) return;
 
-        const apiKey = localStorage.getItem('muapi_key');
+        const apiKey = localStorage.getItem('fal_key');
         if (!apiKey) {
             AuthModal(() => videoFileInput.click());
             return;
@@ -994,7 +994,7 @@ export function VideoStudio() {
         const pending = getPendingJobs('video');
         if (!pending.length) return;
 
-        const apiKey = localStorage.getItem('muapi_key');
+        const apiKey = localStorage.getItem('fal_key');
         if (!apiKey) return; // can't poll without key; jobs remain for next time
 
         const banner = document.createElement('div');
@@ -1007,7 +1007,7 @@ export function VideoStudio() {
             const elapsedAttempts = Math.floor((Date.now() - job.submittedAt) / job.interval);
             const attemptsLeft = Math.max(1, job.maxAttempts - elapsedAttempts);
             try {
-                const result = await muapi.pollForResult(job.requestId, apiKey, attemptsLeft, job.interval);
+                const result = await muapi.pollForResult(job.requestId, apiKey, attemptsLeft, job.interval, job.historyMeta?.model);
                 const url = result.outputs?.[0] || result.url || result.output?.url;
                 if (url) {
                     addToHistory({ id: job.requestId, url, ...job.historyMeta, timestamp: new Date().toISOString() });
@@ -1118,7 +1118,7 @@ export function VideoStudio() {
 
         // Local Wan2GP generations don't go through Muapi — skip the auth gate.
         if (!isLocal) {
-            const apiKey = localStorage.getItem('muapi_key');
+        const apiKey = localStorage.getItem('fal_key');
             if (!apiKey) {
                 AuthModal(() => generateBtn.click());
                 return;
