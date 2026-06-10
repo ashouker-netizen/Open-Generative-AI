@@ -295,6 +295,7 @@ export function EtsyPipeline() {
         generationHistory.unshift(entry);
         try {
             localStorage.setItem('fal_history', JSON.stringify(generationHistory.slice(0, 50)));
+            localStorage.setItem('etsy_history', JSON.stringify(generationHistory.slice(0, 50)));
         } catch { /* ignore */ }
         historySidebar.classList.remove('translate-x-full', 'opacity-0');
         historySidebar.classList.add('translate-x-0', 'opacity-100');
@@ -494,7 +495,7 @@ export function EtsyPipeline() {
 
     // Load image history from localStorage
     try {
-        const saved = JSON.parse(localStorage.getItem('fal_history') || '[]');
+        const saved = JSON.parse(localStorage.getItem('etsy_history') || '[]');
         if (saved.length > 0) {
             saved.forEach(e => generationHistory.push(e));
             historySidebar.classList.remove('translate-x-full', 'opacity-0');
