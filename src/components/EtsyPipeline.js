@@ -15,6 +15,7 @@ export function EtsyPipeline() {
     let isRunning = false;
     let dropdownOpen = false;
     let lastImageUrl = '';
+    const generationHistory = [];
 
     // ==========================================
     // 1. HERO
@@ -166,6 +167,22 @@ export function EtsyPipeline() {
     imagePanel.appendChild(imagePanelInner);
     container.appendChild(imagePanel);
 
+    // History sidebar (right-side, same pattern as ImageStudio)
+    const historySidebar = document.createElement('div');
+    historySidebar.className = 'fixed right-0 top-0 h-full w-20 md:w-24 bg-black/60 backdrop-blur-xl border-l border-white/5 z-50 flex flex-col items-center py-4 gap-3 overflow-y-auto transition-all duration-500 translate-x-full opacity-0';
+    historySidebar.id = 'etsy-history-sidebar';
+
+    const historyLabel = document.createElement('div');
+    historyLabel.className = 'text-[9px] font-bold text-muted uppercase tracking-widest mb-2 rotate-0';
+    historyLabel.textContent = 'History';
+    historySidebar.appendChild(historyLabel);
+
+    const historyList = document.createElement('div');
+    historyList.className = 'flex flex-col gap-2 w-full px-2';
+    historySidebar.appendChild(historyList);
+
+    container.appendChild(historySidebar);
+
     // ==========================================
     // 5. CONCEPT HISTORY
     // ==========================================
@@ -275,11 +292,13 @@ export function EtsyPipeline() {
     };
 
     const addToHistory = (entry) => {
+        generationHistory.unshift(entry);
         try {
-            const existing = JSON.parse(localStorage.getItem('fal_history') || '[]');
-            existing.unshift(entry);
-            localStorage.setItem('fal_history', JSON.stringify(existing.slice(0, 50)));
+            localStorage.setItem('fal_history', JSON.stringify(generationHistory.slice(0, 50)));
         } catch { /* ignore */ }
+        historySidebar.classList.remove('translate-x-full', 'opacity-0');
+        historySidebar.classList.add('translate-x-0', 'opacity-100');
+        renderHistory();
     };
 
     const downloadImageFile = async (url, filename) => {
@@ -297,6 +316,47 @@ export function EtsyPipeline() {
         } catch {
             window.open(url, '_blank');
         }
+    };
+
+    const showImageFromHistory = (entry) => {
+        imagePanel.classList.remove('hidden');
+        imgEl.src = entry.url;
+        conceptLabel.textContent = entry.prompt?.substring(0, 80) || '';
+        lastImageUrl = entry.url;
+        imagePanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+
+    const renderHistory = () => {
+        historyList.innerHTML = '';
+        generationHistory.forEach((entry, idx) => {
+            const thumb = document.createElement('div');
+            thumb.className = `relative group/thumb cursor-pointer rounded-xl overflow-hidden border-2 transition-all duration-300 ${idx === 0 ? 'border-primary shadow-glow' : 'border-white/10 hover:border-white/30'}`;
+
+            thumb.innerHTML = `
+                <img src="${entry.url}" alt="${entry.prompt?.substring(0, 30) || 'Generated'}" class="w-full aspect-square object-cover">
+                <div class="absolute inset-0 bg-black/60 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                    <button class="hist-download p-1.5 bg-primary rounded-lg text-black hover:scale-110 transition-transform" title="Download">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                    </button>
+                </div>
+            `;
+
+            thumb.onclick = (e) => {
+                if (e.target.closest('.hist-download')) {
+                    downloadImageFile(entry.url, `etsy-${entry.id || idx}.png`);
+                    return;
+                }
+                showImageFromHistory(entry);
+                historyList.querySelectorAll('div').forEach(t => {
+                    t.classList.remove('border-primary', 'shadow-glow');
+                    t.classList.add('border-white/10');
+                });
+                thumb.classList.remove('border-white/10');
+                thumb.classList.add('border-primary', 'shadow-glow');
+            };
+
+            historyList.appendChild(thumb);
+        });
     };
 
     const buildFilename = (subject, theme, date) => {
@@ -431,6 +491,17 @@ export function EtsyPipeline() {
     // 10. INIT
     // ==========================================
     renderConceptHistory();
+
+    // Load image history from localStorage
+    try {
+        const saved = JSON.parse(localStorage.getItem('fal_history') || '[]');
+        if (saved.length > 0) {
+            saved.forEach(e => generationHistory.push(e));
+            historySidebar.classList.remove('translate-x-full', 'opacity-0');
+            historySidebar.classList.add('translate-x-0', 'opacity-100');
+            renderHistory();
+        }
+    } catch (e) { /* ignore */ }
 
     const hasKey = !!(window.__FAL_KEY__ || localStorage.getItem('fal_key'));
     if (hasKey) {
