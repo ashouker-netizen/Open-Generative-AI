@@ -1,144 +1,443 @@
 import { generate } from '../lib/ideaEngine.js';
 import { save, getAll } from '../lib/uniquenessDB.js';
 import { checkAndRun, markRunToday, hasRunToday } from '../lib/scheduler.js';
-import { generateImage } from '../lib/muapi.js';
+import { muapi } from '../lib/muapi.js';
+import { t2iModels } from '../lib/models.js';
 
 export function EtsyPipeline() {
-  const container = document.createElement('div');
-  container.className = 'etsy-pipeline flex h-full';
+    const container = document.createElement('div');
+    container.className = 'w-full h-full flex flex-col items-center bg-app-bg relative p-4 md:p-6 overflow-y-auto custom-scrollbar overflow-x-hidden';
 
-  let isRunning = false;
+    // --- State ---
+    const nanoBanana = t2iModels.find(m => m.id === 'nano-banana') || t2iModels[0];
+    let selectedModel = nanoBanana.id;
+    let selectedModelName = nanoBanana.name;
+    let isRunning = false;
+    let dropdownOpen = false;
+    let lastImageUrl = '';
 
-  // ---- Sidebar ----
-  const sidebar = document.createElement('div');
-  sidebar.className = 'w-64 bg-white/5 p-4 flex flex-col gap-4 border-r border-white/10';
-  sidebar.innerHTML = `
-    <h2 class="text-lg font-semibold text-cyan-400">Etsy Pipeline</h2>
-    <button id="run-now-btn" class="bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-2 px-4 rounded-lg transition">
-      Run Now
-    </button>
-    <div class="text-sm text-white/60" id="run-status">
-      ${hasRunToday() ? 'Already ran today' : 'Not run today yet'}
-    </div>
-    <div class="text-xs text-white/40">Auto-runs at 8am when app opens</div>
-    <hr class="border-white/10"/>
-    <div class="text-xs text-white/60">Total generated: <span id="total-count">${getAll().length}</span></div>
-  `;
+    // ==========================================
+    // 1. HERO
+    // ==========================================
+    const hero = document.createElement('div');
+    hero.className = 'flex flex-col items-center mb-10 animate-fade-in-up';
+    hero.innerHTML = `
+        <div class="mb-8 relative group">
+            <div class="absolute inset-0 bg-primary/20 blur-[100px] rounded-full opacity-40 group-hover:opacity-70 transition-opacity duration-1000"></div>
+            <div class="relative w-24 h-24 bg-teal-900/40 rounded-3xl flex items-center justify-center border border-white/5 overflow-hidden">
+                <div class="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center border border-primary/20 shadow-glow relative z-10">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-primary">
+                        <path d="M6 2L3 6v15a2 2 0 002 2h14a2 2 0 002-2V6l-3-4H6z"/>
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <path d="M16 10a4 4 0 01-8 0"/>
+                    </svg>
+                </div>
+                <div class="absolute top-4 right-4 text-primary animate-pulse">🎨</div>
+            </div>
+        </div>
+        <h1 class="text-2xl sm:text-4xl md:text-6xl font-black text-white tracking-widest uppercase mb-4 text-center px-4">Etsy Pipeline</h1>
+        <p class="text-secondary text-sm font-medium tracking-wide opacity-60">Daily nursery art generator — auto-runs at 8am</p>
+    `;
+    container.appendChild(hero);
 
-  // ---- Main area ----
-  const main = document.createElement('div');
-  main.className = 'flex-1 p-6 flex flex-col gap-6 overflow-y-auto';
-  main.innerHTML = `
-    <div id="pipeline-status" class="text-white/60 text-sm">Ready. Click "Run Now" or wait for auto-run.</div>
-    <div id="image-preview" class="hidden flex flex-col gap-3">
-      <img id="preview-img" class="max-w-sm rounded-xl shadow-lg" />
-      <div id="concept-label" class="text-white/80 text-sm"></div>
-      <button id="open-folder-btn" class="text-xs text-cyan-400 hover:text-cyan-300 w-fit">Open Downloads Folder</button>
-    </div>
-    <div id="history-section" class="mt-4">
-      <h3 class="text-sm font-semibold text-white/60 mb-2">History</h3>
-      <div id="history-list" class="flex flex-col gap-2"></div>
-    </div>
-  `;
+    // ==========================================
+    // 2. CONTROL BAR
+    // ==========================================
+    const controlWrapper = document.createElement('div');
+    controlWrapper.className = 'w-full max-w-4xl relative z-40 animate-fade-in-up';
 
-  container.appendChild(sidebar);
-  container.appendChild(main);
+    const bar = document.createElement('div');
+    bar.className = 'w-full bg-[#111]/90 backdrop-blur-xl border border-white/10 rounded-[2rem] p-4 md:p-5 flex flex-col gap-4 shadow-3xl';
 
-  function updateStatus(msg) {
-    main.querySelector('#pipeline-status').textContent = msg;
-  }
+    const controlsRow = document.createElement('div');
+    controlsRow.className = 'flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 px-2';
 
-  function showNotification(title, body) {
-    if (Notification.permission === 'granted') {
-      new Notification(title, { body });
-    } else if (Notification.permission !== 'denied') {
-      Notification.requestPermission().then(p => {
-        if (p === 'granted') new Notification(title, { body });
-      });
+    const controlsLeft = document.createElement('div');
+    controlsLeft.className = 'flex items-center gap-2 flex-wrap';
+
+    // Model button — exact same pattern as ImageStudio
+    const createControlBtn = (icon, label, id, tooltip) => {
+        const btn = document.createElement('button');
+        btn.id = id;
+        btn.className = 'flex items-center gap-1.5 md:gap-2.5 px-3 md:px-4 py-2 md:py-2.5 bg-white/5 hover:bg-white/10 rounded-xl md:rounded-2xl transition-all border border-white/5 group whitespace-nowrap';
+        if (tooltip) btn.setAttribute('data-tooltip', tooltip);
+        btn.innerHTML = `
+            ${icon}
+            <span id="${id}-label" class="text-xs font-bold text-white group-hover:text-primary transition-colors">${label}</span>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" class="opacity-20 group-hover:opacity-100 transition-opacity"><path d="M6 9l6 6 6-6"/></svg>
+        `;
+        return btn;
+    };
+
+    const modelBtn = createControlBtn(`
+        <div class="w-5 h-5 bg-primary rounded-md flex items-center justify-center shadow-lg shadow-primary/20">
+            <span class="text-[10px] font-black text-black">G</span>
+        </div>
+    `, selectedModelName, 'etsy-model-btn', 'Select AI generation model');
+
+    const scheduleChip = document.createElement('div');
+    scheduleChip.id = 'schedule-chip';
+    scheduleChip.className = 'flex items-center gap-2 px-3 py-2 bg-white/5 rounded-2xl border border-white/5';
+    scheduleChip.innerHTML = `
+        <div class="w-2 h-2 rounded-full ${hasRunToday() ? 'bg-green-400' : 'bg-yellow-400'}"></div>
+        <span class="text-xs font-bold text-white/60">${hasRunToday() ? 'Ran today' : 'Not run today'}</span>
+    `;
+
+    const totalChip = document.createElement('div');
+    totalChip.className = 'flex items-center gap-2 px-3 py-2 bg-white/5 rounded-2xl border border-white/5';
+    totalChip.innerHTML = `
+        <span class="text-xs text-white/40">Total:</span>
+        <span id="total-count" class="text-xs font-bold text-primary">${getAll().length}</span>
+    `;
+
+    controlsLeft.appendChild(modelBtn);
+    controlsLeft.appendChild(scheduleChip);
+    controlsLeft.appendChild(totalChip);
+
+    const runBtn = document.createElement('button');
+    runBtn.id = 'run-now-btn';
+    runBtn.className = 'bg-primary text-black px-6 md:px-8 py-3 rounded-xl md:rounded-[1.5rem] font-black text-sm md:text-base hover:shadow-glow hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2.5 w-full sm:w-auto shadow-lg';
+    runBtn.innerHTML = 'Run Now ✨';
+
+    controlsRow.appendChild(controlsLeft);
+    controlsRow.appendChild(runBtn);
+    bar.appendChild(controlsRow);
+
+    const statusRow = document.createElement('div');
+    statusRow.className = 'px-2 pt-3 border-t border-white/5';
+    statusRow.innerHTML = `<p id="pipeline-status" class="text-sm text-white/50">Ready. Click "Run Now" or wait for auto-run at 8am.</p>`;
+    bar.appendChild(statusRow);
+
+    controlWrapper.appendChild(bar);
+    container.appendChild(controlWrapper);
+
+    // ==========================================
+    // 3. PROMPT DISPLAY PANEL
+    // ==========================================
+    const promptPanel = document.createElement('div');
+    promptPanel.className = 'w-full max-w-4xl mt-6 hidden';
+    promptPanel.id = 'etsy-prompt-panel';
+    promptPanel.innerHTML = `
+        <div class="bg-[#111]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-5 flex flex-col gap-3">
+            <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+                <span class="text-[10px] font-bold text-secondary uppercase tracking-widest">Full Prompt Sent to fal.ai</span>
+            </div>
+            <p id="etsy-prompt-display" class="text-white/80 text-sm leading-relaxed font-mono bg-white/5 rounded-xl px-4 py-3 border border-white/5 break-words"></p>
+        </div>
+    `;
+    container.appendChild(promptPanel);
+
+    // ==========================================
+    // 4. IMAGE PREVIEW PANEL
+    // ==========================================
+    const imagePanel = document.createElement('div');
+    imagePanel.className = 'w-full max-w-4xl mt-6 hidden';
+    imagePanel.id = 'etsy-image-panel';
+
+    const imagePanelInner = document.createElement('div');
+    imagePanelInner.className = 'bg-[#111]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-5 flex flex-col items-center gap-5';
+
+    const imgEl = document.createElement('img');
+    imgEl.id = 'etsy-preview-img';
+    imgEl.className = 'max-h-[60vh] max-w-full rounded-2xl shadow-3xl border border-white/10 object-contain';
+
+    const conceptLabel = document.createElement('p');
+    conceptLabel.id = 'etsy-concept-label';
+    conceptLabel.className = 'text-white/60 text-sm text-center';
+
+    const imgControls = document.createElement('div');
+    imgControls.className = 'flex gap-3';
+
+    const downloadBtn = document.createElement('button');
+    downloadBtn.className = 'bg-primary text-black px-6 py-2.5 rounded-2xl text-xs font-black transition-all shadow-glow active:scale-95 hover:scale-105';
+    downloadBtn.textContent = '↓ Download';
+
+    const openFolderBtn = document.createElement('button');
+    openFolderBtn.id = 'etsy-open-folder-btn';
+    openFolderBtn.className = 'bg-white/10 hover:bg-white/20 px-6 py-2.5 rounded-2xl text-xs font-bold transition-all border border-white/5 text-white';
+    openFolderBtn.textContent = 'Open Downloads';
+
+    imgControls.appendChild(downloadBtn);
+    imgControls.appendChild(openFolderBtn);
+    imagePanelInner.appendChild(imgEl);
+    imagePanelInner.appendChild(conceptLabel);
+    imagePanelInner.appendChild(imgControls);
+    imagePanel.appendChild(imagePanelInner);
+    container.appendChild(imagePanel);
+
+    // ==========================================
+    // 5. CONCEPT HISTORY
+    // ==========================================
+    const historySection = document.createElement('div');
+    historySection.className = 'w-full max-w-4xl mt-6 mb-10';
+    historySection.innerHTML = `
+        <div class="bg-[#111]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-5 flex flex-col gap-3">
+            <h3 class="text-[10px] font-bold text-secondary uppercase tracking-widest">Concept History</h3>
+            <div id="etsy-history-list" class="flex flex-col gap-2"></div>
+        </div>
+    `;
+    container.appendChild(historySection);
+
+    // ==========================================
+    // 6. MODEL DROPDOWN — same glass panel as ImageStudio
+    // ==========================================
+    const dropdown = document.createElement('div');
+    dropdown.className = 'absolute z-50 transition-all opacity-0 pointer-events-none scale-95 origin-bottom-left glass rounded-3xl p-3 w-[calc(100vw-3rem)] max-w-xs shadow-4xl border border-white/10 flex flex-col';
+    container.appendChild(dropdown);
+
+    const closeDropdown = () => {
+        dropdown.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
+        dropdown.classList.remove('opacity-100', 'pointer-events-auto', 'scale-100');
+        dropdownOpen = false;
+    };
+
+    const showModelDropdown = (anchorBtn) => {
+        dropdown.innerHTML = `
+            <div class="flex flex-col h-full max-h-[70vh]">
+                <div class="px-2 pb-3 mb-2 border-b border-white/5 shrink-0">
+                    <div class="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-2.5 border border-white/5 focus-within:border-primary/50 transition-colors">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-muted"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                        <input type="text" id="etsy-model-search" placeholder="Search models..." class="bg-transparent border-none text-xs text-white focus:ring-0 w-full p-0">
+                    </div>
+                </div>
+                <div class="text-[10px] font-bold text-secondary uppercase tracking-widest px-3 py-2 shrink-0">Available models</div>
+                <div id="etsy-model-list" class="flex flex-col gap-1.5 overflow-y-auto custom-scrollbar pr-1 pb-2"></div>
+            </div>
+        `;
+        dropdown.classList.remove('opacity-0', 'pointer-events-none', 'scale-95');
+        dropdown.classList.add('opacity-100', 'pointer-events-auto', 'scale-100');
+
+        const list = dropdown.querySelector('#etsy-model-list');
+
+        const renderModels = (filter = '') => {
+            list.innerHTML = '';
+            const filtered = t2iModels.filter(m =>
+                m.name.toLowerCase().includes(filter.toLowerCase()) ||
+                m.id.toLowerCase().includes(filter.toLowerCase())
+            );
+            filtered.forEach(m => {
+                const item = document.createElement('div');
+                item.className = `flex items-center justify-between p-3.5 hover:bg-white/5 rounded-2xl cursor-pointer transition-all border border-transparent hover:border-white/5 ${selectedModel === m.id ? 'bg-white/5 border-white/5' : ''}`;
+                item.innerHTML = `
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-10 h-10 bg-primary/10 text-primary border border-white/5 rounded-xl flex items-center justify-center font-black text-sm shadow-inner uppercase">${m.name.charAt(0)}</div>
+                        <span class="text-xs font-bold text-white tracking-tight">${m.name}</span>
+                    </div>
+                    ${selectedModel === m.id ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+                `;
+                item.onclick = (e) => {
+                    e.stopPropagation();
+                    selectedModel = m.id;
+                    selectedModelName = m.name;
+                    document.getElementById('etsy-model-btn-label').textContent = selectedModelName;
+                    closeDropdown();
+                };
+                list.appendChild(item);
+            });
+        };
+
+        renderModels();
+
+        const searchInput = dropdown.querySelector('#etsy-model-search');
+        searchInput.onclick = (e) => e.stopPropagation();
+        searchInput.oninput = (e) => renderModels(e.target.value);
+
+        const btnRect = anchorBtn.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        if (window.innerWidth < 768) {
+            dropdown.style.left = '50%';
+            dropdown.style.transform = 'translateX(-50%)';
+        } else {
+            dropdown.style.left = `${btnRect.left - containerRect.left}px`;
+            dropdown.style.transform = '';
+        }
+        dropdown.style.bottom = `${containerRect.bottom - btnRect.top + 8}px`;
+    };
+
+    modelBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (dropdownOpen) closeDropdown();
+        else {
+            dropdownOpen = true;
+            showModelDropdown(modelBtn);
+        }
+    };
+
+    window.onclick = () => closeDropdown();
+
+    // ==========================================
+    // 7. HELPERS
+    // ==========================================
+    const updateStatus = (msg) => {
+        const el = container.querySelector('#pipeline-status');
+        if (el) el.textContent = msg;
+    };
+
+    const addToHistory = (entry) => {
+        try {
+            const existing = JSON.parse(localStorage.getItem('fal_history') || '[]');
+            existing.unshift(entry);
+            localStorage.setItem('fal_history', JSON.stringify(existing.slice(0, 50)));
+        } catch { /* ignore */ }
+    };
+
+    const downloadImageFile = async (url, filename) => {
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(blobUrl);
+        } catch {
+            window.open(url, '_blank');
+        }
+    };
+
+    const buildFilename = (subject, theme, date) => {
+        const slug = (s) => s.toLowerCase().replace(/\s+/g, '-');
+        return `etsy-${date}-${slug(subject)}-${slug(theme)}.png`;
+    };
+
+    const renderConceptHistory = () => {
+        const list = container.querySelector('#etsy-history-list');
+        if (!list) return;
+        const all = getAll().slice().reverse().slice(0, 10);
+        if (all.length === 0) {
+            list.innerHTML = '<p class="text-xs text-white/30 text-center py-2">No concepts generated yet.</p>';
+            return;
+        }
+        list.innerHTML = all.map(e => `
+            <div class="text-xs text-white/50 bg-white/5 rounded-xl px-4 py-3 border border-white/5 flex items-center justify-between">
+                <span class="text-white/80 font-medium">${e.subject} — ${e.theme}</span>
+                <div class="flex items-center gap-3">
+                    <span class="text-white/30">${e.date}</span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/20 text-primary">${e.status}</span>
+                </div>
+            </div>
+        `).join('');
+        const countEl = container.querySelector('#total-count');
+        if (countEl) countEl.textContent = getAll().length;
+    };
+
+    const showNotification = (title, body) => {
+        if (Notification.permission === 'granted') {
+            new Notification(title, { body });
+        } else if (Notification.permission !== 'denied') {
+            Notification.requestPermission().then(p => {
+                if (p === 'granted') new Notification(title, { body });
+            });
+        }
+    };
+
+    // ==========================================
+    // 8. PIPELINE LOGIC
+    // ==========================================
+    async function runPipeline() {
+        if (isRunning) return;
+        isRunning = true;
+        runBtn.disabled = true;
+        runBtn.innerHTML = `<span class="animate-spin inline-block mr-2 text-black">◌</span> Generating...`;
+
+        try {
+            updateStatus('Generating new nursery concept...');
+
+            const concept = generate();
+
+            // Show prompt panel immediately with the full prompt
+            promptPanel.classList.remove('hidden');
+            const promptDisplay = container.querySelector('#etsy-prompt-display');
+            if (promptDisplay) promptDisplay.textContent = concept.prompt;
+
+            updateStatus(`Concept: "${concept.subject} — ${concept.theme}" · calling fal.ai with ${selectedModelName}...`);
+
+            const result = await muapi.generateImage({ prompt: concept.prompt, model: selectedModel });
+            const imageUrl = result?.url || result?.images?.[0]?.url;
+            if (!imageUrl) throw new Error('No image URL returned from fal.ai');
+
+            lastImageUrl = imageUrl;
+
+            const date = new Date().toISOString().split('T')[0];
+            const filename = buildFilename(concept.subject, concept.theme, date);
+            downloadImageFile(imageUrl, filename);
+
+            const entry = { ...concept, date, filename, status: 'approved' };
+            save(entry);
+            markRunToday();
+
+            // Add to shared fal_history so it appears in ImageStudio history panel
+            addToHistory({
+                id: Date.now().toString(),
+                url: imageUrl,
+                prompt: concept.prompt,
+                model: selectedModel,
+                timestamp: new Date().toISOString()
+            });
+
+            // Update schedule chip
+            const chip = container.querySelector('#schedule-chip');
+            if (chip) {
+                chip.innerHTML = `
+                    <div class="w-2 h-2 rounded-full bg-green-400"></div>
+                    <span class="text-xs font-bold text-white/60">Ran today</span>
+                `;
+            }
+
+            // Show image preview
+            imagePanel.classList.remove('hidden');
+            imgEl.src = imageUrl;
+            conceptLabel.textContent = `${concept.subject} — ${concept.theme}`;
+
+            showNotification('New Etsy print ready!', `${concept.subject} ${concept.theme} — saved to Downloads`);
+            updateStatus('Done! Image saved to Downloads.');
+            renderConceptHistory();
+
+        } catch (err) {
+            updateStatus(`Error: ${err.message}`);
+            console.error('[EtsyPipeline]', err);
+        } finally {
+            isRunning = false;
+            runBtn.disabled = false;
+            runBtn.innerHTML = 'Run Now ✨';
+        }
     }
-  }
 
-  function downloadImage(url, filename) {
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-  }
+    // ==========================================
+    // 9. EVENT HANDLERS
+    // ==========================================
+    runBtn.addEventListener('click', runPipeline);
 
-  function buildFilename(subject, theme, date) {
-    const slug = (s) => s.toLowerCase().replace(/\s+/g, '-');
-    return `etsy-${date}-${slug(subject)}-${slug(theme)}.png`;
-  }
+    downloadBtn.onclick = () => {
+        if (lastImageUrl) {
+            const date = new Date().toISOString().split('T')[0];
+            downloadImageFile(lastImageUrl, `etsy-${date}.png`);
+        }
+    };
 
-  function renderHistory() {
-    const list = main.querySelector('#history-list');
-    const all = getAll().slice().reverse().slice(0, 10);
-    list.innerHTML = all.map(e => `
-      <div class="text-xs text-white/50 bg-white/5 rounded px-3 py-2">
-        <span class="text-white/80">${e.subject} ${e.theme}</span> — ${e.date}
-        <span class="ml-2 text-cyan-400">${e.status}</span>
-      </div>
-    `).join('');
-    const countEl = sidebar.querySelector('#total-count');
-    if (countEl) countEl.textContent = getAll().length;
-  }
+    openFolderBtn.addEventListener('click', () => {
+        if (window.localAI?.openDownloads) {
+            window.localAI.openDownloads();
+        } else {
+            updateStatus('Images are saved to your Downloads folder.');
+        }
+    });
 
-  async function runPipeline() {
-    if (isRunning) return;
-    isRunning = true;
-    const runBtn = sidebar.querySelector('#run-now-btn');
-    runBtn.disabled = true;
-    runBtn.textContent = 'Generating...';
+    // ==========================================
+    // 10. INIT
+    // ==========================================
+    renderConceptHistory();
 
-    try {
-      updateStatus('Generating new nursery concept...');
-
-      const concept = generate();
-      updateStatus(`Concept: "${concept.subject} ${concept.theme}" — calling fal.ai...`);
-
-      const result = await generateImage({ prompt: concept.prompt, model: 'flux-schnell' });
-      const imageUrl = result?.url || result?.images?.[0]?.url;
-      if (!imageUrl) throw new Error('No image URL returned from fal.ai');
-
-      const date = new Date().toISOString().split('T')[0];
-      const filename = buildFilename(concept.subject, concept.theme, date);
-      downloadImage(imageUrl, filename);
-
-      const entry = { ...concept, date, filename, status: 'approved' };
-      save(entry);
-      markRunToday();
-
-      const preview = main.querySelector('#image-preview');
-      preview.classList.remove('hidden');
-      main.querySelector('#preview-img').src = imageUrl;
-      main.querySelector('#concept-label').textContent = `"${concept.prompt}"`;
-      sidebar.querySelector('#run-status').textContent = 'Already ran today';
-
-      showNotification('New Etsy print ready!', `${concept.subject} ${concept.theme} — saved to Downloads`);
-      updateStatus('Done! Image saved to Downloads.');
-      renderHistory();
-
-    } catch (err) {
-      updateStatus(`Error: ${err.message}`);
-      console.error('[EtsyPipeline]', err);
-    } finally {
-      isRunning = false;
-      runBtn.disabled = false;
-      runBtn.textContent = 'Run Now';
-    }
-  }
-
-  sidebar.querySelector('#run-now-btn').addEventListener('click', runPipeline);
-  main.querySelector('#open-folder-btn')?.addEventListener('click', () => {
-    if (window.localAI?.openDownloads) {
-      window.localAI.openDownloads();
+    const hasKey = !!(window.__FAL_KEY__ || localStorage.getItem('fal_key'));
+    if (hasKey) {
+        checkAndRun(runPipeline);
     } else {
-      updateStatus('Images are saved to your Downloads folder.');
+        updateStatus('⚠️ No API key set. Go to Settings → set your fal.ai key, then come back and click Run Now.');
     }
-  });
 
-  renderHistory();
-  checkAndRun(runPipeline);
-
-  return container;
+    return container;
 }
