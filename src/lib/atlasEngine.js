@@ -1,25 +1,29 @@
 import { callClaude } from './claudeClient.js';
 import { hasBeenUsed } from './uniquenessDB.js';
-import { ETSY_KEYWORD_RULES, TINYDREAM_IMAGE_RULES } from './etsySkill.js';
+import { ETSY_KEYWORD_RULES, ETSY_ALGORITHM_RULES, TINYDREAM_IMAGE_RULES } from './etsySkill.js';
 
 const SYSTEM_PROMPT = `You are an Etsy SEO researcher specialising in nursery digital prints.
 
 Your job is to pick ONE specific keyword + concept for a nursery wall art digital print listing.
 
+${ETSY_ALGORITHM_RULES}
+
 ${ETSY_KEYWORD_RULES}
 
 ${TINYDREAM_IMAGE_RULES}
 
-The style must be one of: watercolor, soft pastel, gouache painting, colored pencil, flat illustration.
-Never repeat a subject+theme combo from the recent history provided.
+STYLE OPTIONS — pick the one that best fits the concept:
+watercolor, soft pastel, gouache painting, colored pencil, flat illustration
 
-You MUST respond with ONLY a valid JSON object — no explanation, no markdown fences, no extra text:
+UNIQUENESS: Never repeat a subject+theme combo from the recent history provided to you.
+
+RESPONSE FORMAT — You MUST respond with ONLY a valid JSON object. No explanation, no markdown fences, no extra text:
 {
-  "keyword": "two to four word Etsy search phrase",
-  "subject": "specific subject (e.g. sleepy elephant)",
-  "theme": "specific theme (e.g. under the stars)",
+  "keyword": "two to four word Etsy search phrase a buyer would actually type",
+  "subject": "specific subject (e.g. sleepy elephant, baby fox, sunflower)",
+  "theme": "specific theme (e.g. under the stars, in a cozy bed, with alphabet blocks)",
   "style": "one of: watercolor, soft pastel, gouache painting, colored pencil, flat illustration",
-  "rationale": "one sentence explaining why this keyword has buyer demand and fits the niche"
+  "rationale": "one sentence: why this keyword has real buyer demand and fits the TinyDream niche"
 }`;
 
 /**
@@ -33,11 +37,11 @@ You MUST respond with ONLY a valid JSON object — no explanation, no markdown f
 export async function generateKeyword({ category, seed, recentConcepts }, maxRetries = 3) {
   const historyText = recentConcepts.length > 0
     ? `\nRecent concepts to AVOID repeating:\n${recentConcepts.map(c => `- ${c.subject} / ${c.theme}`).join('\n')}`
-    : '\nNo concepts generated yet — pick anything good.';
+    : '\nNo concepts generated yet — pick anything that fits the niche well.';
 
   const userPrompt = seed
-    ? `Category: ${category}\nUser seed idea: "${seed}"${historyText}\n\nPick a keyword and concept inspired by the seed idea.`
-    : `Category: ${category}${historyText}\n\nPick the best keyword and concept for this category.`;
+    ? `Category: ${category}\nUser seed idea: "${seed}"${historyText}\n\nPick a keyword and concept inspired by the seed idea. Apply the Resounding Yes rule — the keyword must target a buyer who is definitely searching for this exact thing.`
+    : `Category: ${category}${historyText}\n\nPick the best keyword and concept for this category. Apply the Resounding Yes rule — the keyword must target a buyer who is definitely searching for this exact thing.`;
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const result = await callClaude(SYSTEM_PROMPT, userPrompt);
