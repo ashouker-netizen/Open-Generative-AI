@@ -24,21 +24,13 @@ function navigate(page) {
     import('./components/LipSyncStudio.js').then(({ LipSyncStudio }) => {
       contentArea.appendChild(LipSyncStudio());
     });
-  } else if (page === 'workflows') {
-    import('./components/WorkflowStudio.js').then(({ WorkflowStudio }) => {
-      contentArea.appendChild(WorkflowStudio());
-    });
-  } else if (page === 'agents') {
-    import('./components/AgentStudio.js').then(({ AgentStudio }) => {
-      contentArea.appendChild(AgentStudio());
-    });
-  } else if (page === 'mcp-cli') {
-    import('./components/McpCliStudio.js').then(({ McpCliStudio }) => {
-      contentArea.appendChild(McpCliStudio());
-    });
   } else if (page === 'etsy-pipeline') {
     import('./components/EtsyPipeline.js').then(({ EtsyPipeline }) => {
       contentArea.appendChild(EtsyPipeline());
+    });
+  } else if (page === 'history') {
+    import('./components/HistoryGallery.js').then(({ HistoryGallery }) => {
+      contentArea.appendChild(HistoryGallery());
     });
   }
 }
