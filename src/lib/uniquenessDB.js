@@ -22,3 +22,9 @@ export function save(entry) {
 export function getCount() {
   return getAll().length;
 }
+
+export function getRecentConcepts(n = 20) {
+  return getAll()
+    .slice(-n)
+    .map(e => ({ subject: e.subject, theme: e.theme, keyword: e.keyword || '' }));
+}
