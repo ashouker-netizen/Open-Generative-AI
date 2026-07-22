@@ -264,11 +264,14 @@ function falHeaders(key, extra = {}) {
     };
 }
 
+// ponytail: normalizes "1k"→"1K" for fal.ai resolution fields; leaves "480p" etc. untouched
+const normalizeResolution = v => typeof v === 'string' ? v.replace(/^(\d*\.?\d+)[kK]$/, (_, n) => `${n}K`) : v;
+
 function cleanInput(input = {}) {
     const next = {};
     for (const [key, value] of Object.entries(input)) {
         if (value === undefined || value === null || value === '') continue;
-        next[key] = value;
+        next[key] = key === 'resolution' ? normalizeResolution(value) : value;
     }
     return next;
 }
