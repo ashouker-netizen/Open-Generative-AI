@@ -15,7 +15,9 @@ export function hasBeenUsed(subject, theme) {
 
 export function save(entry) {
   const history = getAll();
-  history.push({ ...entry, id: crypto.randomUUID() });
+  // ponytail: strip imageUrl — base64 blows localStorage quota; stored in IndexedDB separately
+  const { imageUrl, ...rest } = entry;
+  history.push({ ...rest, id: crypto.randomUUID() });
   localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
 }
 

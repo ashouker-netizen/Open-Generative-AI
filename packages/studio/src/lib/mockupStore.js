@@ -1,31 +1,39 @@
 const DB_NAME = 'tinydream';
 const STORE = 'mockups';
-const VERSION = 1;
+const IMAGES = 'images';
+const VERSION = 2;
 
 function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, VERSION);
-    req.onupgradeneeded = e => e.target.result.createObjectStore(STORE);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+      if (!db.objectStoreNames.contains(IMAGES)) db.createObjectStore(IMAGES);
+    };
     req.onsuccess = e => resolve(e.target.result);
     req.onerror = e => reject(e.target.error);
   });
 }
 
-export async function saveMockups(entryId, mockups) {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).put(mockups, entryId);
+function put(store, key, value) {
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).put(value, key);
     tx.oncomplete = resolve;
     tx.onerror = e => reject(e.target.error);
-  });
+  }));
 }
 
-export async function loadMockups(entryId) {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const req = db.transaction(STORE).objectStore(STORE).get(entryId);
-    req.onsuccess = e => resolve(e.target.result || []);
+function get(store, key) {
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const req = db.transaction(store).objectStore(store).get(key);
+    req.onsuccess = e => resolve(e.target.result);
     req.onerror = e => reject(e.target.error);
-  });
+  }));
 }
+
+export async function saveMockups(entryId, mockups) { return put(STORE, entryId, mockups); }
+export async function loadMockups(entryId) { return (await get(STORE, entryId)) || []; }
+export async function saveImage(entryId, dataUrl) { return put(IMAGES, entryId, dataUrl); }
+export async function loadImage(entryId) { return (await get(IMAGES, entryId)) || ''; }

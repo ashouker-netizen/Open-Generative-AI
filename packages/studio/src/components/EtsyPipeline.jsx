@@ -7,7 +7,7 @@ import { getAll, save, getRecentConcepts } from '../lib/uniquenessDB.js';
 import { markRunToday } from '../lib/scheduler.js';
 import { hasClaudeKey, setClaudeKey } from '../lib/claudeClient.js';
 import { generateWithGemini, generateWithOpenAI, generateMockupWithGemini, generateMockupWithOpenAI } from '../lib/imageProviders.js';
-import { saveMockups, loadMockups } from '../lib/mockupStore.js';
+import { saveMockups, loadMockups, saveImage, loadImage } from '../lib/mockupStore.js';
 import { pickFolder, savePrintToFolder } from '../lib/folderSaver.js';
 import { resizeForPrint } from '../lib/imageResizer.js';
 
@@ -175,7 +175,10 @@ export default function EtsyPipeline({ apiKey }) {
     );
     const generated = results.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
     const failed = results.filter(r => r.status === 'rejected');
-    if (failed.length) console.error('Mockup errors:', failed.map(r => r.reason?.message));
+    if (failed.length) {
+      console.error('Mockup errors:', failed.map(r => r.reason));
+      failed.forEach((f, i) => console.error(`Mockup ${i} error:`, f.reason?.message, f.reason));
+    }
     if (generated.length) {
       setMockups(generated);
       if (entryId) saveMockups(entryId, generated).catch(() => {});
@@ -206,8 +209,9 @@ export default function EtsyPipeline({ apiKey }) {
       downloadImage(url, filename);
 
       const entryId = Date.now().toString();
-      const entry = { ...keyword, ...p, date, filename, status: 'approved', imageUrl: url, entryId };
+      const entry = { ...keyword, ...p, date, filename, status: 'approved', entryId };
       save(entry);
+      saveImage(entryId, url).catch(() => {});
       refreshConceptHistory();
       markRunToday();
       pushHistory({ id: entryId, url, prompt: p.imagePrompt, model, timestamp: new Date().toISOString() });
@@ -320,8 +324,9 @@ export default function EtsyPipeline({ apiKey }) {
       // Save edited version as a new history entry
       const entryId = Date.now().toString();
       const date = new Date().toISOString().split('T')[0];
-      const entry = { ...(keyword || {}), ...(pack || {}), date, imageUrl: newUrl, entryId, status: 'approved', editNote: promptText };
+      const entry = { ...(keyword || {}), ...(pack || {}), date, entryId, status: 'approved', editNote: promptText };
       save(entry);
+      saveImage(entryId, newUrl).catch(() => {});
       refreshConceptHistory();
       pushHistory({ id: entryId, url: newUrl, prompt: `[edit] ${promptText}`, model, timestamp: new Date().toISOString() });
 
@@ -378,10 +383,11 @@ export default function EtsyPipeline({ apiKey }) {
     setKeyword({ keyword: e.keyword, subject: e.subject, theme: e.theme, style: e.style, rationale: e.rationale });
     setPack({ title: e.title, tags: e.tags, description: e.description, imagePrompt: e.imagePrompt });
     setShowPack(true);
-    setImageUrl(e.imageUrl || '');
+    setImageUrl('');
     setMockups([]);
-    setStatus(`Restored: "${e.keyword}" — ${e.date}`);
+    setStatus(`Restored: "${e.keyword || e.editNote || 'entry'}" — ${e.date}`);
     if (e.entryId) {
+      loadImage(e.entryId).then(img => { if (img) setImageUrl(img); }).catch(() => {});
       loadMockups(e.entryId).then(m => { if (m.length) setMockups(m); }).catch(() => {});
     }
   }
@@ -756,9 +762,9 @@ export default function EtsyPipeline({ apiKey }) {
                 <div className="flex items-center gap-3">
                   <span className="text-white/30">{e.date}</span>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-400/20 text-cyan-400">{e.status}</span>
-                  {e.imageUrl && (
+                  {e.entryId && (
                     <button
-                      onClick={ev => { ev.stopPropagation(); downloadImage(e.imageUrl, e.filename || `etsy-${e.date}.png`); }}
+                      onClick={ev => { ev.stopPropagation(); loadImage(e.entryId).then(img => { if (img) downloadImage(img, e.filename || `etsy-${e.date}.png`); }); }}
                       className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 hover:bg-white/20 text-white/60 hover:text-white transition-colors"
                     >↓</button>
                   )}
