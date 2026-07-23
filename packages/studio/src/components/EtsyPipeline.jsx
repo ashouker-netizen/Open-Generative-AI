@@ -77,6 +77,8 @@ export default function EtsyPipeline({ apiKey }) {
   const [imageUrl, setImageUrl] = useState(_imgCache.imageUrl || '');
   const [mockups, setMockups] = useState(_imgCache.mockups || []);
   const [history, setHistory] = useState(loadHistory);
+  const [conceptHistory, setConceptHistory] = useState(() => getAll().slice().reverse().slice(0, 10));
+  const refreshConceptHistory = () => setConceptHistory(getAll().slice().reverse().slice(0, 10));
   const [claudeInput, setClaudeInput] = useState('');
   const [showClaudePanel, setShowClaudePanel] = useState(false);
   const [geminiInput, setGeminiInput] = useState('');
@@ -172,8 +174,14 @@ export default function EtsyPipeline({ apiKey }) {
       MOCKUP_PROMPTS.map(p => generateMockupForEtsy(p, artworkUrl))
     );
     const generated = results.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
-    setMockups(generated);
-    if (entryId) saveMockups(entryId, generated).catch(() => {});
+    const failed = results.filter(r => r.status === 'rejected');
+    if (failed.length) console.error('Mockup errors:', failed.map(r => r.reason?.message));
+    if (generated.length) {
+      setMockups(generated);
+      if (entryId) saveMockups(entryId, generated).catch(() => {});
+    } else if (failed.length) {
+      throw new Error(failed[0].reason?.message || 'Mockup generation failed');
+    }
     return generated;
   }
 
@@ -200,6 +208,7 @@ export default function EtsyPipeline({ apiKey }) {
       const entryId = Date.now().toString();
       const entry = { ...keyword, ...p, date, filename, status: 'approved', imageUrl: url, entryId };
       save(entry);
+      refreshConceptHistory();
       markRunToday();
       pushHistory({ id: entryId, url, prompt: p.imagePrompt, model, timestamp: new Date().toISOString() });
 
@@ -280,9 +289,10 @@ export default function EtsyPipeline({ apiKey }) {
   async function editImage() {
     if (!imageUrl || !editPrompt.trim()) return;
     setEditRunning(true);
+    const promptText = editPrompt.trim();
     try {
       const m = ETSY_MODELS.find(x => x.id === model);
-      const instruction = `You are an image editor. I will give you an image and ONE specific correction to apply. Make ONLY that change. Do not alter the style, colors, composition, subject, background, or any other element. Preserve everything exactly as it is except for the one correction. Correction: ${editPrompt.trim()}`;
+      const instruction = `You are an image editor. I will give you an image and ONE specific correction to apply. Make ONLY that change. Do not alter the style, colors, composition, subject, background, or any other element. Preserve everything exactly as it is except for the one correction. Correction: ${promptText}`;
       let newUrl;
 
       if (m?.provider === 'openai') {
@@ -305,8 +315,19 @@ export default function EtsyPipeline({ apiKey }) {
       setImageUrl(newUrl);
       setShowEditModal(false);
       setEditPrompt('');
+      clearMask();
+
+      // Save edited version as a new history entry
+      const entryId = Date.now().toString();
+      const date = new Date().toISOString().split('T')[0];
+      const entry = { ...(keyword || {}), ...(pack || {}), date, imageUrl: newUrl, entryId, status: 'approved', editNote: promptText };
+      save(entry);
+      refreshConceptHistory();
+      pushHistory({ id: entryId, url: newUrl, prompt: `[edit] ${promptText}`, model, timestamp: new Date().toISOString() });
+
       setStatus('Image updated — regenerating mockups…');
-      await buildMockups(newUrl, null);
+      await new Promise(r => setTimeout(r, 2000));
+      await buildMockups(newUrl, entryId);
       setStatus('Done!');
     } catch (err) {
       setStatus(`Edit error: ${err.message}`);
@@ -370,7 +391,6 @@ export default function EtsyPipeline({ apiKey }) {
     m.id.toLowerCase().includes(modelSearch.toLowerCase())
   );
 
-  const conceptHistory = getAll().slice().reverse().slice(0, 10);
 
   return (
     <div className="w-full h-full flex flex-col items-center bg-[#050505] p-4 md:p-6 overflow-y-auto">
@@ -729,8 +749,9 @@ export default function EtsyPipeline({ apiKey }) {
                 className="text-xs text-white/50 bg-white/5 hover:bg-white/10 rounded-xl px-4 py-3 border border-white/5 flex items-center justify-between cursor-pointer transition-colors"
               >
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-white/80 font-medium">{e.subject} — {e.theme}</span>
-                  {e.keyword && <span className="text-cyan-400/60 text-[10px]">{e.keyword}</span>}
+                  <span className="text-white/80 font-medium">{e.subject || 'Edit'} — {e.theme || ''}</span>
+                  {e.editNote && <span className="text-amber-400/70 text-[10px]">✏️ {e.editNote}</span>}
+                  {!e.editNote && e.keyword && <span className="text-cyan-400/60 text-[10px]">{e.keyword}</span>}
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-white/30">{e.date}</span>
