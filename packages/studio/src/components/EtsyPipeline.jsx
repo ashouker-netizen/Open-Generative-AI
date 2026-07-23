@@ -173,9 +173,13 @@ export default function EtsyPipeline({ apiKey }) {
 
   async function generateRoomScene(prompt) {
     const geminiKey = getGeminiKey();
-    if (!geminiKey) throw new Error('Gemini key required for mockup generation');
-    const geminiModel = ETSY_MODELS.find(x => x.provider === 'gemini' && x.apiType === 'generateContent');
-    return generateWithGemini(prompt, geminiKey, geminiModel.nativeModel, 'generateContent');
+    if (geminiKey) {
+      const geminiModel = ETSY_MODELS.find(x => x.provider === 'gemini' && x.apiType === 'generateContent');
+      return generateWithGemini(prompt, geminiKey, geminiModel.nativeModel, 'generateContent');
+    }
+    const openaiKey = getOpenAIKey();
+    if (openaiKey) return generateWithOpenAI(prompt, openaiKey);
+    throw new Error('Set a Gemini or OpenAI key to generate mockups');
   }
 
   async function buildMockups(artworkUrl, entryId) {
