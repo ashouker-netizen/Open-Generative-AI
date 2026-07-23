@@ -8,6 +8,8 @@ import { markRunToday } from '../lib/scheduler.js';
 import { hasClaudeKey, setClaudeKey } from '../lib/claudeClient.js';
 import { generateWithGemini, generateWithOpenAI, generateMockupWithGemini, generateMockupWithOpenAI } from '../lib/imageProviders.js';
 import { saveMockups, loadMockups } from '../lib/mockupStore.js';
+import { pickFolder, savePrintToFolder } from '../lib/folderSaver.js';
+import { resizeForPrint } from '../lib/imageResizer.js';
 
 const CATEGORIES = ['Animals', 'Botanical', 'Educational'];
 const HISTORY_KEY = 'etsy_history';
@@ -87,6 +89,11 @@ export default function EtsyPipeline({ apiKey }) {
   const [modelOpen, setModelOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [lightbox, setLightbox] = useState(null);
+  const [driveStatus, setDriveStatus] = useState('');
+  const [driveSaving, setDriveSaving] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editPrompt, setEditPrompt] = useState('');
+  const [editRunning, setEditRunning] = useState(false);
   const modelBtnRef = useRef(null);
 
   const currentProvider = ETSY_MODELS.find(m => m.id === model)?.provider;
@@ -152,6 +159,22 @@ export default function EtsyPipeline({ apiKey }) {
     }
   }
 
+  const MOCKUP_PROMPTS = [
+    `Place this artwork print in a white wooden frame centered on the wall above a white wooden crib with a soft grey muslin blanket. Warm morning sunlight filters through sheer curtains. Cozy pastel nursery decor. Photorealistic interior photography.`,
+    `Place this artwork print in a slim white frame on a sage green painted nursery wall. A natural wood rocking chair with a cream knit throw sits nearby, with a small potted eucalyptus plant. Golden hour soft light. Cozy Scandinavian nursery style. Photorealistic.`,
+    `Place this artwork print in a white frame above a white changing table with folded pastel blankets and a small bunny plush. Warm beige linen textured wall. Soft diffused window light. Minimalist cozy nursery. Photorealistic interior photography.`,
+  ];
+
+  async function buildMockups(artworkUrl, entryId) {
+    const results = await Promise.allSettled(
+      MOCKUP_PROMPTS.map(p => generateMockupForEtsy(p, artworkUrl))
+    );
+    const generated = results.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
+    setMockups(generated);
+    if (entryId) saveMockups(entryId, generated).catch(() => {});
+    return generated;
+  }
+
   async function runPack() {
     if (running || !keyword) return;
     setRunning(true);
@@ -179,20 +202,7 @@ export default function EtsyPipeline({ apiKey }) {
       pushHistory({ id: entryId, url, prompt: p.imagePrompt, model, timestamp: new Date().toISOString() });
 
       setStatus('Generating nursery room mockups (3)...');
-
-      const mockupPrompts = [
-        `Place this artwork print in a white wooden frame centered on the wall above a white wooden crib with a soft grey muslin blanket. Warm morning sunlight filters through sheer curtains. Cozy pastel nursery decor. Photorealistic interior photography.`,
-        `Place this artwork print in a slim white frame on a sage green painted nursery wall. A natural wood rocking chair with a cream knit throw sits nearby, with a small potted eucalyptus plant. Golden hour soft light. Cozy Scandinavian nursery style. Photorealistic.`,
-        `Place this artwork print in a white frame above a white changing table with folded pastel blankets and a small bunny plush. Warm beige linen textured wall. Soft diffused window light. Minimalist cozy nursery. Photorealistic interior photography.`,
-      ];
-
-      const mockupResults = await Promise.allSettled(
-        mockupPrompts.map(prompt => generateMockupForEtsy(prompt, url))
-      );
-
-      const generatedMockups = mockupResults.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
-      setMockups(generatedMockups);
-      saveMockups(entryId, generatedMockups).catch(() => {});
+      const generatedMockups = await buildMockups(url, entryId);
       setStatus('Done! Image and mockups ready. Copy your listing text above.');
     } catch (err) {
       setStatus(`Error: ${err.message}`);
@@ -214,12 +224,79 @@ export default function EtsyPipeline({ apiKey }) {
     }
   }
 
+  async function editImage() {
+    if (!imageUrl || !editPrompt.trim()) return;
+    setEditRunning(true);
+    try {
+      const m = ETSY_MODELS.find(x => x.id === model);
+      const instruction = `Here is the current image. Apply this correction and regenerate the image: ${editPrompt.trim()}. Keep everything else identical.`;
+      let newUrl;
+
+      if (m?.provider === 'openai') {
+        // OpenAI: /images/edits accepts image + prompt directly
+        newUrl = await generateMockupWithOpenAI(instruction, imageUrl, getOpenAIKey(), m.nativeModel, m.quality);
+      } else if (m?.apiType === 'generateContent') {
+        // Gemini image models: inlineData works perfectly
+        newUrl = await generateMockupWithGemini(instruction, imageUrl, getGeminiKey(), m.nativeModel, m.apiType);
+      } else {
+        // Imagen: no image input support — fall back to Gemini generateContent if key available
+        const geminiKey = getGeminiKey();
+        const geminiModel = ETSY_MODELS.find(x => x.apiType === 'generateContent');
+        if (geminiKey && geminiModel) {
+          newUrl = await generateMockupWithGemini(instruction, imageUrl, geminiKey, geminiModel.nativeModel, geminiModel.apiType);
+        } else {
+          throw new Error('Imagen models do not support image editing. Set a Gemini key to enable editing with Imagen.');
+        }
+      }
+
+      setImageUrl(newUrl);
+      setShowEditModal(false);
+      setEditPrompt('');
+      setStatus('Image updated — regenerating mockups…');
+      await buildMockups(newUrl, null);
+      setStatus('Done!');
+    } catch (err) {
+      setStatus(`Edit error: ${err.message}`);
+      setShowEditModal(false);
+    } finally {
+      setEditRunning(false);
+    }
+  }
+
   async function generateMockupForEtsy(prompt, artworkUrl) {
     const m = ETSY_MODELS.find(x => x.id === model);
+    // Prefer Gemini for mockups — it accepts inlineData and faithfully preserves the artwork.
+    // Fall back to OpenAI edits only if no Gemini key is set.
+    const geminiKey = getGeminiKey();
+    if (geminiKey) {
+      const geminiModel = ETSY_MODELS.find(x => x.provider === 'gemini' && x.apiType === 'generateContent');
+      if (geminiModel) {
+        return generateMockupWithGemini(prompt, artworkUrl, geminiKey, geminiModel.nativeModel, geminiModel.apiType);
+      }
+    }
     if (m?.provider === 'gemini') {
       return generateMockupWithGemini(prompt, artworkUrl, getGeminiKey(), m.nativeModel, m.apiType);
-    } else {
-      return generateMockupWithOpenAI(prompt, artworkUrl, getOpenAIKey(), m.nativeModel, m.quality);
+    }
+    return generateMockupWithOpenAI(prompt, artworkUrl, getOpenAIKey(), m.nativeModel, m.quality);
+  }
+
+  async function saveToDrive() {
+    if (!imageUrl) return;
+    setDriveSaving(true);
+    setDriveStatus('');
+    try {
+      // Must pick folder first — browser requires user gesture at this point
+      const root = await pickFolder();
+      const date = new Date().toISOString().split('T')[0];
+      const folderName = keyword ? `${date} — ${keyword.subject} — ${keyword.theme}` : `${date} — TinyDream Print`;
+      const sizedFiles = await resizeForPrint(imageUrl, msg => setDriveStatus(msg));
+      await savePrintToFolder(root, folderName, sizedFiles, msg => setDriveStatus(msg));
+      setDriveStatus('All files saved!');
+    } catch (err) {
+      if (err.name === 'AbortError') { setDriveStatus(''); return; }
+      setDriveStatus(`Error: ${err.message}`);
+    } finally {
+      setDriveSaving(false);
     }
   }
 
@@ -492,12 +569,27 @@ export default function EtsyPipeline({ apiKey }) {
       {imageUrl && (
         <div className="w-full max-w-4xl mt-6">
           <div className="bg-[#111]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-5 flex flex-col items-center gap-5">
-            <img src={imageUrl} alt="Generated" onClick={() => setLightbox(imageUrl)} className="max-h-[60vh] max-w-full rounded-2xl shadow-2xl border border-white/10 object-contain cursor-zoom-in"/>
+            <div className="relative w-full flex justify-center">
+              <img src={imageUrl} alt="Generated" onClick={() => setLightbox(imageUrl)} className="max-h-[60vh] max-w-full rounded-2xl shadow-2xl border border-white/10 object-contain cursor-zoom-in"/>
+              <button
+                onClick={() => setShowEditModal(true)}
+                title="Edit image"
+                className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-xl px-3 py-1.5 text-xs font-bold backdrop-blur-sm border border-white/10 transition-all"
+              >✏️ Edit</button>
+            </div>
             <p className="text-white/60 text-sm text-center">{keyword ? `${keyword.subject} — ${keyword.theme}` : ''}</p>
-            <button
-              onClick={() => downloadImage(imageUrl, `etsy-${new Date().toISOString().split('T')[0]}.png`)}
-              className="bg-cyan-400 text-black px-6 py-2.5 rounded-2xl text-xs font-black hover:scale-105 transition-all"
-            >↓ Download</button>
+            <div className="flex gap-3 flex-wrap justify-center">
+              <button
+                onClick={() => downloadImage(imageUrl, `etsy-${new Date().toISOString().split('T')[0]}.png`)}
+                className="bg-cyan-400 text-black px-6 py-2.5 rounded-2xl text-xs font-black hover:scale-105 transition-all"
+              >↓ Download</button>
+              <button
+                onClick={saveToDrive}
+                disabled={driveSaving}
+                className="bg-white/10 hover:bg-white/20 text-white px-6 py-2.5 rounded-2xl text-xs font-black hover:scale-105 transition-all disabled:opacity-60 disabled:scale-100 border border-white/10"
+              >{driveSaving ? 'Saving…' : '📁 Save All Sizes'}</button>
+            </div>
+            {driveStatus && <p className="text-white/50 text-xs text-center">{driveStatus}</p>}
           </div>
         </div>
       )}
@@ -605,6 +697,35 @@ export default function EtsyPipeline({ apiKey }) {
 
       {/* Click-outside to close model dropdown */}
       {modelOpen && <div className="fixed inset-0 z-30" onClick={() => setModelOpen(false)}/>}
+
+      {/* Edit image modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => !editRunning && setShowEditModal(false)}>
+          <div className="bg-[#111] border border-white/10 rounded-2xl p-6 w-full max-w-md flex flex-col gap-4 mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <span className="text-white font-bold text-sm">Edit Image</span>
+              <span className="text-white/30 text-xs">{ETSY_MODELS.find(x => x.id === model)?.name}</span>
+            </div>
+            <textarea
+              autoFocus
+              value={editPrompt}
+              onChange={e => setEditPrompt(e.target.value)}
+              placeholder="Describe what to change — e.g. 'make the background light blue' or 'add a small rainbow above the bunny'"
+              rows={4}
+              className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-cyan-400/50 resize-none"
+              onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) editImage(); }}
+            />
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowEditModal(false)} disabled={editRunning} className="px-4 py-2 rounded-xl text-xs font-bold text-white/40 hover:text-white transition-colors">Cancel</button>
+              <button
+                onClick={editImage}
+                disabled={editRunning || !editPrompt.trim()}
+                className="bg-cyan-400 text-black px-5 py-2 rounded-xl text-xs font-black hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100"
+              >{editRunning ? 'Regenerating…' : 'Apply Correction'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Lightbox */}
       {lightbox && (
