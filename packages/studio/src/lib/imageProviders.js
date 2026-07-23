@@ -45,8 +45,21 @@ async function generateWithGeminiContent(prompt, key, nativeModel) {
   return url;
 }
 
+async function toDataUrl(url) {
+  if (url.startsWith('data:')) return url;
+  const res = await fetch(url);
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 async function generateMockupWithGeminiContent(prompt, artworkDataUrl, key, nativeModel) {
-  const [header, b64] = artworkDataUrl.split(',');
+  const dataUrl = await toDataUrl(artworkDataUrl);
+  const [header, b64] = dataUrl.split(',');
   const mimeType = header.match(/data:([^;]+)/)?.[1] || 'image/png';
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1/models/${nativeModel}:generateContent?key=${key}`,
@@ -93,10 +106,11 @@ function dataUrlToBlob(dataUrl) {
   return new Blob([bytes], { type: mimeType });
 }
 
-export async function generateMockupWithOpenAI(prompt, artworkDataUrl, key, nativeModel, quality) {
+export async function generateMockupWithOpenAI(prompt, artworkDataUrl, key, nativeModel, quality, maskBlob = null) {
   const blob = dataUrlToBlob(artworkDataUrl);
   const formData = new FormData();
   formData.append('image', blob, 'artwork.png');
+  if (maskBlob) formData.append('mask', maskBlob, 'mask.png');
   formData.append('prompt', prompt);
   formData.append('model', nativeModel);
   formData.append('n', '1');

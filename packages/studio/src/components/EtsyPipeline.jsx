@@ -92,6 +92,8 @@ export default function EtsyPipeline({ apiKey }) {
   const [driveStatus, setDriveStatus] = useState('');
   const [driveSaving, setDriveSaving] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const maskCanvasRef = useRef(null);
+  const isPaintingRef = useRef(false);
   const [editPrompt, setEditPrompt] = useState('');
   const [editRunning, setEditRunning] = useState(false);
   const modelBtnRef = useRef(null);
@@ -224,17 +226,68 @@ export default function EtsyPipeline({ apiKey }) {
     }
   }
 
+  // Initialize mask canvas to match image dimensions when modal opens
+  useEffect(() => {
+    if (!showEditModal || !maskCanvasRef.current || !imageUrl) return;
+    const img = new Image();
+    img.onload = () => {
+      const c = maskCanvasRef.current;
+      if (!c) return;
+      c.width = img.naturalWidth;
+      c.height = img.naturalHeight;
+      c.getContext('2d').clearRect(0, 0, c.width, c.height);
+    };
+    img.src = imageUrl;
+  }, [showEditModal, imageUrl]);
+
+  function paintMask(e) {
+    const canvas = maskCanvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    const ctx = canvas.getContext('2d');
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = 'rgba(255, 80, 80, 0.7)';
+    ctx.beginPath();
+    ctx.arc(x, y, 30 * (canvas.width / rect.width), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function clearMask() {
+    const c = maskCanvasRef.current;
+    if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
+  }
+
+  function buildMaskBlob(paintCanvas) {
+    const { width, height } = paintCanvas;
+    const out = document.createElement('canvas');
+    out.width = width; out.height = height;
+    const ctx = out.getContext('2d');
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, width, height);
+    const src = paintCanvas.getContext('2d').getImageData(0, 0, width, height);
+    const dst = ctx.getImageData(0, 0, width, height);
+    for (let i = 0; i < src.data.length; i += 4) {
+      if (src.data[i + 3] > 10) {
+        dst.data[i] = dst.data[i + 1] = dst.data[i + 2] = dst.data[i + 3] = 0;
+      }
+    }
+    ctx.putImageData(dst, 0, 0);
+    return new Promise(r => out.toBlob(r, 'image/png'));
+  }
+
   async function editImage() {
     if (!imageUrl || !editPrompt.trim()) return;
     setEditRunning(true);
     try {
       const m = ETSY_MODELS.find(x => x.id === model);
-      const instruction = `Here is the current image. Apply this correction and regenerate the image: ${editPrompt.trim()}. Keep everything else identical.`;
+      const instruction = `You are an image editor. I will give you an image and ONE specific correction to apply. Make ONLY that change. Do not alter the style, colors, composition, subject, background, or any other element. Preserve everything exactly as it is except for the one correction. Correction: ${editPrompt.trim()}`;
       let newUrl;
 
       if (m?.provider === 'openai') {
-        // OpenAI: /images/edits accepts image + prompt directly
-        newUrl = await generateMockupWithOpenAI(instruction, imageUrl, getOpenAIKey(), m.nativeModel, m.quality);
+        const maskBlob = maskCanvasRef.current ? await buildMaskBlob(maskCanvasRef.current) : null;
+        newUrl = await generateMockupWithOpenAI(instruction, imageUrl, getOpenAIKey(), m.nativeModel, m.quality, maskBlob);
       } else if (m?.apiType === 'generateContent') {
         // Gemini image models: inlineData works perfectly
         newUrl = await generateMockupWithGemini(instruction, imageUrl, getGeminiKey(), m.nativeModel, m.apiType);
@@ -701,10 +754,27 @@ export default function EtsyPipeline({ apiKey }) {
       {/* Edit image modal */}
       {showEditModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => !editRunning && setShowEditModal(false)}>
-          <div className="bg-[#111] border border-white/10 rounded-2xl p-6 w-full max-w-md flex flex-col gap-4 mx-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-[#111] border border-white/10 rounded-2xl p-6 w-full max-w-lg flex flex-col gap-4 mx-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <span className="text-white font-bold text-sm">Edit Image</span>
               <span className="text-white/30 text-xs">{ETSY_MODELS.find(x => x.id === model)?.name}</span>
+            </div>
+            {/* Mask painter — brush over the area to change */}
+            <div className="relative rounded-xl overflow-hidden" style={{ lineHeight: 0 }}>
+              <img src={imageUrl} alt="Edit target" className="w-full rounded-xl" />
+              <canvas
+                ref={maskCanvasRef}
+                className="absolute inset-0 w-full h-full rounded-xl cursor-crosshair"
+                style={{ opacity: 0.7 }}
+                onMouseDown={e => { isPaintingRef.current = true; paintMask(e); }}
+                onMouseMove={e => { if (isPaintingRef.current) paintMask(e); }}
+                onMouseUp={() => { isPaintingRef.current = false; }}
+                onMouseLeave={() => { isPaintingRef.current = false; }}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-white/30 text-xs">Paint over the area you want to change</span>
+              <button onClick={clearMask} className="text-white/30 hover:text-white text-xs transition-colors">Clear mask</button>
             </div>
             <textarea
               autoFocus
