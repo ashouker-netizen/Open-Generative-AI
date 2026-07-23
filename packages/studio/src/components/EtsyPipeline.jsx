@@ -95,6 +95,7 @@ export default function EtsyPipeline({ apiKey }) {
   const [driveStatus, setDriveStatus] = useState('');
   const [driveSaving, setDriveSaving] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [editMockupIndex, setEditMockupIndex] = useState(null); // null = main image, number = mockup
   const maskCanvasRef = useRef(null);
   const isPaintingRef = useRef(false);
   const [editPrompt, setEditPrompt] = useState('');
@@ -261,7 +262,9 @@ export default function EtsyPipeline({ apiKey }) {
 
   // Initialize mask canvas to match image dimensions when modal opens
   useEffect(() => {
-    if (!showEditModal || !maskCanvasRef.current || !imageUrl) return;
+    if (!showEditModal || !maskCanvasRef.current) return;
+    const src = editMockupIndex !== null ? mockups[editMockupIndex] : imageUrl;
+    if (!src) return;
     const img = new Image();
     img.onload = () => {
       const c = maskCanvasRef.current;
@@ -270,8 +273,8 @@ export default function EtsyPipeline({ apiKey }) {
       c.height = img.naturalHeight;
       c.getContext('2d').clearRect(0, 0, c.width, c.height);
     };
-    img.src = imageUrl;
-  }, [showEditModal, imageUrl]);
+    img.src = src;
+  }, [showEditModal, imageUrl, editMockupIndex]);
 
   function paintMask(e) {
     const canvas = maskCanvasRef.current;
@@ -310,54 +313,55 @@ export default function EtsyPipeline({ apiKey }) {
     return new Promise(r => out.toBlob(r, 'image/png'));
   }
 
+  async function applyEdit(sourceUrl) {
+    const m = ETSY_MODELS.find(x => x.id === model);
+    const promptText = editPrompt.trim();
+    const instruction = `You are an image editor. I will give you an image and ONE specific correction to apply. Make ONLY that change. Do not alter the style, colors, composition, subject, background, or any other element. Preserve everything exactly as it is except for the one correction. Correction: ${promptText}`;
+    if (m?.provider === 'openai') {
+      const maskBlob = maskCanvasRef.current ? await buildMaskBlob(maskCanvasRef.current) : null;
+      return generateMockupWithOpenAI(instruction, sourceUrl, getOpenAIKey(), m.nativeModel, m.quality, maskBlob);
+    } else if (m?.apiType === 'generateContent') {
+      return generateMockupWithGemini(instruction, sourceUrl, getGeminiKey(), m.nativeModel, m.apiType);
+    } else {
+      const geminiKey = getGeminiKey();
+      const geminiModel = ETSY_MODELS.find(x => x.apiType === 'generateContent');
+      if (geminiKey && geminiModel) return generateMockupWithGemini(instruction, sourceUrl, geminiKey, geminiModel.nativeModel, geminiModel.apiType);
+      throw new Error('Imagen models do not support image editing. Set a Gemini key to enable editing with Imagen.');
+    }
+  }
+
   async function editImage() {
-    if (!imageUrl || !editPrompt.trim()) return;
+    if (!editPrompt.trim()) return;
     setEditRunning(true);
     const promptText = editPrompt.trim();
     try {
-      const m = ETSY_MODELS.find(x => x.id === model);
-      const instruction = `You are an image editor. I will give you an image and ONE specific correction to apply. Make ONLY that change. Do not alter the style, colors, composition, subject, background, or any other element. Preserve everything exactly as it is except for the one correction. Correction: ${promptText}`;
-      let newUrl;
-
-      if (m?.provider === 'openai') {
-        const maskBlob = maskCanvasRef.current ? await buildMaskBlob(maskCanvasRef.current) : null;
-        newUrl = await generateMockupWithOpenAI(instruction, imageUrl, getOpenAIKey(), m.nativeModel, m.quality, maskBlob);
-      } else if (m?.apiType === 'generateContent') {
-        // Gemini image models: inlineData works perfectly
-        newUrl = await generateMockupWithGemini(instruction, imageUrl, getGeminiKey(), m.nativeModel, m.apiType);
+      if (editMockupIndex !== null) {
+        // Editing a mockup — just replace that one
+        const newUrl = await applyEdit(mockups[editMockupIndex]);
+        setMockups(prev => prev.map((u, i) => i === editMockupIndex ? newUrl : u));
       } else {
-        // Imagen: no image input support — fall back to Gemini generateContent if key available
-        const geminiKey = getGeminiKey();
-        const geminiModel = ETSY_MODELS.find(x => x.apiType === 'generateContent');
-        if (geminiKey && geminiModel) {
-          newUrl = await generateMockupWithGemini(instruction, imageUrl, geminiKey, geminiModel.nativeModel, geminiModel.apiType);
-        } else {
-          throw new Error('Imagen models do not support image editing. Set a Gemini key to enable editing with Imagen.');
-        }
+        // Editing the main image
+        const newUrl = await applyEdit(imageUrl);
+        setImageUrl(newUrl);
+        const entryId = Date.now().toString();
+        const date = new Date().toISOString().split('T')[0];
+        save({ ...(keyword || {}), ...(pack || {}), date, entryId, status: 'approved', editNote: promptText });
+        saveImage(entryId, newUrl).catch(() => {});
+        refreshConceptHistory();
+        pushHistory({ id: entryId, url: newUrl, prompt: `[edit] ${promptText}`, model, timestamp: new Date().toISOString() });
+        setStatus('Image updated — regenerating mockups…');
+        await buildMockups(newUrl, entryId);
+        setStatus('Done!');
       }
-
-      setImageUrl(newUrl);
       setShowEditModal(false);
       setEditPrompt('');
       clearMask();
-
-      // Save edited version as a new history entry
-      const entryId = Date.now().toString();
-      const date = new Date().toISOString().split('T')[0];
-      const entry = { ...(keyword || {}), ...(pack || {}), date, entryId, status: 'approved', editNote: promptText };
-      save(entry);
-      saveImage(entryId, newUrl).catch(() => {});
-      refreshConceptHistory();
-      pushHistory({ id: entryId, url: newUrl, prompt: `[edit] ${promptText}`, model, timestamp: new Date().toISOString() });
-
-      setStatus('Image updated — regenerating mockups…');
-      await buildMockups(newUrl, entryId);
-      setStatus('Done!');
     } catch (err) {
       setStatus(`Edit error: ${err.message}`);
       setShowEditModal(false);
     } finally {
       setEditRunning(false);
+      setEditMockupIndex(null);
     }
   }
 
@@ -693,7 +697,13 @@ export default function EtsyPipeline({ apiKey }) {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {mockups.map((url, i) => (
                 <div key={i} className="flex flex-col gap-2">
-                  <img src={url} alt={`Nursery mockup ${i + 1}`} onClick={() => setLightbox(url)} className="w-full rounded-xl border border-white/10 object-cover aspect-square cursor-zoom-in"/>
+                  <div className="relative">
+                    <img src={url} alt={`Nursery mockup ${i + 1}`} onClick={() => setLightbox(url)} className="w-full rounded-xl border border-white/10 object-cover aspect-square cursor-zoom-in"/>
+                    <button
+                      onClick={() => { setEditMockupIndex(i); setShowEditModal(true); }}
+                      className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white px-2 py-1 rounded-lg text-xs font-bold transition-all"
+                    >✏️ Edit</button>
+                  </div>
                   <button
                     onClick={() => downloadImage(url, `etsy-mockup-${i + 1}.png`)}
                     className="bg-white/10 hover:bg-white/20 text-white/70 hover:text-white px-3 py-2 rounded-xl text-xs font-bold transition-all border border-white/10"
@@ -783,15 +793,15 @@ export default function EtsyPipeline({ apiKey }) {
 
       {/* Edit image modal */}
       {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => !editRunning && setShowEditModal(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => { if (!editRunning) { setShowEditModal(false); setEditMockupIndex(null); } }}>
           <div className="bg-[#111] border border-white/10 rounded-2xl p-6 w-full max-w-lg flex flex-col gap-4 mx-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <span className="text-white font-bold text-sm">Edit Image</span>
+              <span className="text-white font-bold text-sm">{editMockupIndex !== null ? `Edit Mockup ${editMockupIndex + 1}` : 'Edit Image'}</span>
               <span className="text-white/30 text-xs">{ETSY_MODELS.find(x => x.id === model)?.name}</span>
             </div>
             {/* Mask painter — brush over the area to change */}
             <div className="relative rounded-xl overflow-hidden" style={{ lineHeight: 0 }}>
-              <img src={imageUrl} alt="Edit target" className="w-full rounded-xl" />
+              <img src={editMockupIndex !== null ? mockups[editMockupIndex] : imageUrl} alt="Edit target" className="w-full rounded-xl" />
               <canvas
                 ref={maskCanvasRef}
                 className="absolute inset-0 w-full h-full rounded-xl cursor-crosshair"
@@ -816,7 +826,7 @@ export default function EtsyPipeline({ apiKey }) {
               onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) editImage(); }}
             />
             <div className="flex gap-3 justify-end">
-              <button onClick={() => setShowEditModal(false)} disabled={editRunning} className="px-4 py-2 rounded-xl text-xs font-bold text-white/40 hover:text-white transition-colors">Cancel</button>
+              <button onClick={() => { setShowEditModal(false); setEditMockupIndex(null); }} disabled={editRunning} className="px-4 py-2 rounded-xl text-xs font-bold text-white/40 hover:text-white transition-colors">Cancel</button>
               <button
                 onClick={editImage}
                 disabled={editRunning || !editPrompt.trim()}
