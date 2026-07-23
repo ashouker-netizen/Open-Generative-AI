@@ -8,6 +8,7 @@ import { markRunToday } from '../lib/scheduler.js';
 import { hasClaudeKey, setClaudeKey } from '../lib/claudeClient.js';
 import { generateWithGemini, generateWithOpenAI, generateMockupWithGemini, generateMockupWithOpenAI } from '../lib/imageProviders.js';
 import { saveMockups, loadMockups, saveImage, loadImage } from '../lib/mockupStore.js';
+import { compositeIntoMarker } from '../lib/mockupCompositor.js';
 import { pickFolder, savePrintToFolder } from '../lib/folderSaver.js';
 import { resizeForPrint } from '../lib/imageResizer.js';
 
@@ -163,22 +164,37 @@ export default function EtsyPipeline({ apiKey }) {
     }
   }
 
+  // Room scene prompts — magenta (#FF00FF) is the placeholder the artwork gets composited into
   const MOCKUP_PROMPTS = [
-    `Place this artwork print in a white wooden frame centered on the wall above a white wooden crib with a soft grey muslin blanket. Warm morning sunlight filters through sheer curtains. Cozy pastel nursery decor. Photorealistic interior photography.`,
-    `Place this artwork print in a slim white frame on a sage green painted nursery wall. A natural wood rocking chair with a cream knit throw sits nearby, with a small potted eucalyptus plant. Golden hour soft light. Cozy Scandinavian nursery style. Photorealistic.`,
-    `Place this artwork print in a white frame above a white changing table with folded pastel blankets and a small bunny plush. Warm beige linen textured wall. Soft diffused window light. Minimalist cozy nursery. Photorealistic interior photography.`,
+    `Photorealistic nursery interior. White wooden crib with a soft grey muslin blanket. Centered above the crib on the wall is a white wooden picture frame. Inside the frame is a SOLID FLAT BRIGHT MAGENTA rectangle (hex #FF00FF, no texture, no gradient, completely flat color). Warm morning sunlight through sheer curtains. Cozy pastel nursery.`,
+    `Photorealistic nursery interior. Sage green painted wall. A natural wood rocking chair with a cream knit throw and a small potted eucalyptus plant. On the wall is a slim white picture frame. Inside the frame is a SOLID FLAT BRIGHT MAGENTA rectangle (hex #FF00FF, no texture, no gradient, completely flat color). Golden hour soft light. Scandinavian nursery style.`,
+    `Photorealistic nursery interior. White changing table with folded pastel blankets and a small bunny plush. Above the table on a warm beige linen wall is a white picture frame. Inside the frame is a SOLID FLAT BRIGHT MAGENTA rectangle (hex #FF00FF, no texture, no gradient, completely flat color). Soft diffused window light. Minimalist cozy nursery.`,
   ];
 
+  async function generateRoomScene(prompt) {
+    const geminiKey = getGeminiKey();
+    if (!geminiKey) throw new Error('Gemini key required for mockup generation');
+    const geminiModel = ETSY_MODELS.find(x => x.provider === 'gemini' && x.apiType === 'generateContent');
+    return generateWithGemini(prompt, geminiKey, geminiModel.nativeModel, 'generateContent');
+  }
+
   async function buildMockups(artworkUrl, entryId) {
-    const results = await Promise.allSettled(
-      MOCKUP_PROMPTS.map(p => generateMockupForEtsy(p, artworkUrl))
+    // Step 1: generate room scenes with magenta placeholder (text-only, no artwork input)
+    const sceneResults = await Promise.allSettled(MOCKUP_PROMPTS.map(generateRoomScene));
+
+    // Step 2: composite the exact artwork into the magenta region of each scene
+    const compositeResults = await Promise.allSettled(
+      sceneResults.map(r =>
+        r.status === 'fulfilled' && r.value
+          ? compositeIntoMarker(r.value, artworkUrl)
+          : Promise.reject(r.reason || new Error('Scene generation failed'))
+      )
     );
-    const generated = results.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
-    const failed = results.filter(r => r.status === 'rejected');
-    if (failed.length) {
-      console.error('Mockup errors:', failed.map(r => r.reason));
-      failed.forEach((f, i) => console.error(`Mockup ${i} error:`, f.reason?.message, f.reason));
-    }
+
+    const generated = compositeResults.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
+    const failed = compositeResults.filter(r => r.status === 'rejected');
+    if (failed.length) failed.forEach((f, i) => console.error(`Mockup ${i}:`, f.reason?.message));
+
     if (generated.length) {
       setMockups(generated);
       if (entryId) saveMockups(entryId, generated).catch(() => {});
@@ -331,7 +347,6 @@ export default function EtsyPipeline({ apiKey }) {
       pushHistory({ id: entryId, url: newUrl, prompt: `[edit] ${promptText}`, model, timestamp: new Date().toISOString() });
 
       setStatus('Image updated — regenerating mockups…');
-      await new Promise(r => setTimeout(r, 2000));
       await buildMockups(newUrl, entryId);
       setStatus('Done!');
     } catch (err) {
@@ -342,22 +357,6 @@ export default function EtsyPipeline({ apiKey }) {
     }
   }
 
-  async function generateMockupForEtsy(prompt, artworkUrl) {
-    const m = ETSY_MODELS.find(x => x.id === model);
-    // Prefer Gemini for mockups — it accepts inlineData and faithfully preserves the artwork.
-    // Fall back to OpenAI edits only if no Gemini key is set.
-    const geminiKey = getGeminiKey();
-    if (geminiKey) {
-      const geminiModel = ETSY_MODELS.find(x => x.provider === 'gemini' && x.apiType === 'generateContent');
-      if (geminiModel) {
-        return generateMockupWithGemini(prompt, artworkUrl, geminiKey, geminiModel.nativeModel, geminiModel.apiType);
-      }
-    }
-    if (m?.provider === 'gemini') {
-      return generateMockupWithGemini(prompt, artworkUrl, getGeminiKey(), m.nativeModel, m.apiType);
-    }
-    return generateMockupWithOpenAI(prompt, artworkUrl, getOpenAIKey(), m.nativeModel, m.quality);
-  }
 
   async function saveToDrive() {
     if (!imageUrl) return;
